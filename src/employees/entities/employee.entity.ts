@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { Warehouse } from "src/warehouses/entities/warehouse.entity";
+import { Warehouse } from "../../warehouses/entities/warehouse.entity";
 import { Column, CreateDateColumn, DeleteDateColumn, Entity, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 
 @Entity()

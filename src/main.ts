@@ -5,9 +5,10 @@ import {DocumentBuilder, SwaggerModule} from '@nestjs/swagger';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const config = new DocumentBuilder()
-    .setTitle('API - Sistema administrador multi-bodega')
-    .setDescription('Documentación de la API RESTful.')
+    .setTitle('API - Multiple Warehouse Administration System')
+    .setDescription('Documentation of the RESTful API.')
     .setVersion('1.0')
+    .addBearerAuth()
     .build();
   
   const document = SwaggerModule.createDocument(app, config);
