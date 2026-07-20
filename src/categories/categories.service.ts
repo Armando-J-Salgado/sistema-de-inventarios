@@ -17,7 +17,7 @@ export class CategoriesService {
     return await this.repository.save(category);
   }
 
-  async findAll(active: boolean): Promise<Category[]> {
+  async findAll(active: boolean | undefined): Promise<Category[]> {
     const where = active === undefined ? {} : {where: {active}};
     return await this.repository.find(where);
   }

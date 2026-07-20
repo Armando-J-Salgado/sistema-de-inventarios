@@ -115,3 +115,9 @@ This markdown context makes the schema **machine-readable** and highlights:
 - Foreign keys (FK) with relationships
 - Nullable fields
 - Latest features like timestamps and integer fields
+
+## Roles for employees
+
+- **ADMINISTRATOR**: `ADMINISTRATOR` is the result of employee.role, can access any function in the system
+- **WAREHOUSE_MANAGER**: `WAREHOUSE_MANAGER` is the result of employee.role, can access functions related to movements or reservations related to his own warehouse. Cannot create, update or delete other entities not related to his own warehouse stock, movements or reservations. He does have permission to consume information (GET Methods).
+- **ANALYST**: `ANALYST` is the result of employee.role. He has access to the analytics functions. Cannot operate create, updates or deletes in the rest of the system. He does have permission to consume information.

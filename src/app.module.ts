@@ -27,6 +27,7 @@ import { Stock } from './stocks/entities/stock.entity';
 import { Reservation } from './reservations/entities/reservation.entity';
 import { Movement } from './movements/entities/movement.entity';
 import { Warehouse } from './warehouses/entities/warehouse.entity';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [TypeOrmModule.forRoot({
@@ -38,7 +39,7 @@ import { Warehouse } from './warehouses/entities/warehouse.entity';
     database: process.env.DB_NAME,
     entities: [Category, Provider, Product, ProductVariant, Lot, Employee, Sku, Alert, Stock, Reservation, Movement, Warehouse],
     synchronize: true,
-  }), CategoriesModule, ProvidersModule, EmployeesModule, ProductsModule, ProductVariantsModule, LotsModule, SkusModule, WarehousesModule, AlertsModule, StocksModule, ReservationsModule, MovementsModule],
+  }), CategoriesModule, ProvidersModule, EmployeesModule, ProductsModule, ProductVariantsModule, LotsModule, SkusModule, WarehousesModule, AlertsModule, StocksModule, ReservationsModule, MovementsModule, AuthModule],
   controllers: [AppController],
   providers: [AppService],
 })
