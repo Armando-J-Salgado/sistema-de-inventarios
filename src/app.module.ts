@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import 'dotenv/config';
+import { DevtoolsModule } from '@nestjs/devtools-integration';
 import {TypeOrmModule} from '@nestjs/typeorm';
 import { CategoriesModule } from './categories/categories.module';
 import { ProvidersModule } from './providers/providers.module';
@@ -29,16 +30,33 @@ import { Movement } from './movements/entities/movement.entity';
 import { Warehouse } from './warehouses/entities/warehouse.entity';
 
 @Module({
-  imports: [TypeOrmModule.forRoot({
-    type: 'postgres',
-    host: process.env.DB_HOST ?? 'localhost',
-    port: Number(process.env.DB_PORT) ?? 5432,
-    username: process.env.DB_USERNAME,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    entities: [Category, Provider, Product, ProductVariant, Lot, Employee, Sku, Alert, Stock, Reservation, Movement, Warehouse],
-    synchronize: true,
-  }), CategoriesModule, ProvidersModule, EmployeesModule, ProductsModule, ProductVariantsModule, LotsModule, SkusModule, WarehousesModule, AlertsModule, StocksModule, ReservationsModule, MovementsModule],
+  imports: [
+    DevtoolsModule.register({
+      http: process.env.NODE_ENV !== 'production',
+    }),
+    TypeOrmModule.forRoot({
+      type: 'postgres',
+      host: process.env.DB_HOST ?? 'localhost',
+      port: Number(process.env.DB_PORT) ?? 5432,
+      username: process.env.DB_USERNAME,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME,
+      entities: [Category, Provider, Product, ProductVariant, Lot, Employee, Sku, Alert, Stock, Reservation, Movement, Warehouse],
+      synchronize: true,
+    }),
+    CategoriesModule,
+    ProvidersModule,
+    EmployeesModule,
+    ProductsModule,
+    ProductVariantsModule,
+    LotsModule,
+    SkusModule,
+    WarehousesModule,
+    AlertsModule,
+    StocksModule,
+    ReservationsModule,
+    MovementsModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })
