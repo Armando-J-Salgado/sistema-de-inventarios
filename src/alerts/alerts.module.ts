@@ -11,5 +11,6 @@ import { ProductVariant } from 'src/product-variants/entities/product-variant.en
   ],
   controllers: [AlertsController],
   providers: [AlertsService],
+  exports: [AlertsService],
 })
 export class AlertsModule {}
