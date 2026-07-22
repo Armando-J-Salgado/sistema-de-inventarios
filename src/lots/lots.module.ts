@@ -7,10 +7,9 @@ import { Provider } from 'src/providers/entities/provider.entity';
 import { Sku } from 'src/skus/entities/skus.entity';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Lot, Provider, Sku])
-  ],
+  imports: [TypeOrmModule.forFeature([Lot, Provider, Sku])],
   controllers: [LotsController],
   providers: [LotsService],
+  exports: [LotsService, TypeOrmModule],
 })
 export class LotsModule {}

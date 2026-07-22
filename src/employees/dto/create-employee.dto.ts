@@ -26,9 +26,9 @@ export class CreateEmployeeDto {
 	@IsNotEmpty({ message: 'La dirección es requerida' })
 	address: string;
 
-	@ApiProperty({ example: 'ADMINISTRATOR', description: 'Employee role' })
+	@ApiProperty({ example: 'ADMINISTRATOR', description: 'Employee role (ADMINISTRATOR, WAREHOUSE_MANAGER, ANALYST)' })
 	@IsString()
 	@IsNotEmpty({ message: 'El rol es requerido' })
-	@IsIn(['ADMINISTRATOR', 'EMPLOYEE', 'MANAGER'], { message: 'Rol inválido' })
+	@IsIn(['ADMINISTRATOR', 'WAREHOUSE_MANAGER', 'ANALYST'], { message: 'Rol inválido' })
 	role: string;
 }

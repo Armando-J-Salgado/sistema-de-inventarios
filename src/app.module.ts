@@ -3,7 +3,6 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import 'dotenv/config';
 import {TypeOrmModule} from '@nestjs/typeorm';
-import { EventEmitterModule } from '@nestjs/event-emitter';
 import { CategoriesModule } from './categories/categories.module';
 import { ProvidersModule } from './providers/providers.module';
 import { EmployeesModule } from './employees/employees.module';
@@ -32,6 +31,7 @@ import { AuthModule } from './auth/auth.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { EventsModule } from './events/events.module';
 import { CommonModule } from './common/common.module';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 
 @Module({
   imports: [TypeOrmModule.forRoot({
