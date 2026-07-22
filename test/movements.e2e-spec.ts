@@ -28,6 +28,8 @@ import {
   ReceiveDecision,
   MovementStatus,
 } from '../src/enums/movement-type.enum';
+import { EventEmitterModule } from '@nestjs/event-emitter';
+import { LotState } from 'src/lots/enums/lot-state.enum';
 
 dotenv.config({ path: path.resolve(__dirname, '../.env.testing') });
 
@@ -46,6 +48,7 @@ describe('MovementsModule (e2e)', () => {
   let stockRepo: Repository<Stock>;
   let movementRepo: Repository<Movement>;
   let lotRepo: Repository<Lot>;
+  let providerRepo: Repository<Provider>;
 
   let adminToken: string;
   let employeeToken: string;
@@ -91,6 +94,21 @@ describe('MovementsModule (e2e)', () => {
           signOptions: { expiresIn: '1h' },
         }),
         MovementsModule,
+        EventEmitterModule.forRoot(),
+        TypeOrmModule.forFeature([
+          Category,
+          Provider,
+          Product,
+          ProductVariant,
+          Lot,
+          Employee,
+          Sku,
+          Alert,
+          Stock,
+          Reservation,
+          Movement,
+          Warehouse,
+        ]),
       ],
       providers: [JwtStrategy],
     }).compile();
@@ -101,27 +119,30 @@ describe('MovementsModule (e2e)', () => {
     );
     await app.init();
 
+// 2. Get repositories
     jwtService = moduleFixture.get<JwtService>(JwtService);
-    dataSource = moduleFixture.get<DataSource>(DataSource);
-    warehouseRepo = moduleFixture.get(getRepositoryToken(Warehouse));
-    employeeRepo = moduleFixture.get(getRepositoryToken(Employee));
-    skuRepo = moduleFixture.get(getRepositoryToken(Sku));
-    productVariantRepo = moduleFixture.get(getRepositoryToken(ProductVariant));
+    movementRepo = moduleFixture.get(getRepositoryToken(Movement));
     reservationRepo = moduleFixture.get(getRepositoryToken(Reservation));
     stockRepo = moduleFixture.get(getRepositoryToken(Stock));
-    movementRepo = moduleFixture.get(getRepositoryToken(Movement));
-    lotRepo = dataSource.getRepository(Lot);
+    skuRepo = moduleFixture.get(getRepositoryToken(Sku));
+    lotRepo = moduleFixture.get(getRepositoryToken(Lot));
+    employeeRepo = moduleFixture.get(getRepositoryToken(Employee));
+    warehouseRepo = moduleFixture.get(getRepositoryToken(Warehouse));
+    productVariantRepo = moduleFixture.get(getRepositoryToken(ProductVariant));
+    providerRepo = moduleFixture.get(getRepositoryToken(Provider));
 
-    // Clear old data specifically
+    // 3. SAFE CLEANUP: Hard delete only the data this test file cares about
     await movementRepo.createQueryBuilder().delete().execute();
     await reservationRepo.createQueryBuilder().delete().execute();
     await stockRepo.createQueryBuilder().delete().execute();
     await skuRepo.createQueryBuilder().delete().execute();
-    await warehouseRepo.delete({ name: 'Origin WH' });
-    await warehouseRepo.delete({ name: 'Dest WH' });
-    await employeeRepo.delete({ email: 'admin.movements@test.com' });
-    await productVariantRepo.delete({ name: 'Test Variant' });
     await lotRepo.createQueryBuilder().delete().execute();
+    await providerRepo.createQueryBuilder().delete().execute();
+    
+    // Use LIKE to safely catch any test variants/employees from previous crashed runs
+    await employeeRepo.createQueryBuilder().delete().where('email LIKE :email', { email: '%test.com' }).execute();
+    await warehouseRepo.createQueryBuilder().delete().where('name LIKE :name', { name: '%WH' }).execute();
+    await productVariantRepo.createQueryBuilder().delete().where('name LIKE :name', { name: 'Test%' }).execute();
 
     adminEmployee = await employeeRepo.save({
       name: 'Admin User',
@@ -152,9 +173,16 @@ describe('MovementsModule (e2e)', () => {
       reorderPoint: 20,
     });
 
+    const provider = await providerRepo.save({
+      name: 'TEST PROVIDER',
+      address: 'TEST ADDRESS',
+      email: 'arjsalgado@mail.com',
+    })
+
     const lot = await lotRepo.save({
-      state: 'RECEIVED',
+      state: LotState.RECEIVED,
       dateOfEntry: new Date(),
+      providerId: provider.id
     });
 
     sku = await skuRepo.save({
@@ -190,7 +218,7 @@ describe('MovementsModule (e2e)', () => {
     employeeToken = jwtService.sign({
       sub: 99,
       email: 'emp@test.com',
-      roles: 'EMPLOYEE',
+      roles: 'ANALYST',
     }); // Unprivileged
   });
 

@@ -7,6 +7,7 @@ import { Movement } from 'src/movements/entities/movement.entity';
 import { DataSource } from 'typeorm';
 import { NotFoundException } from '@nestjs/common';
 import { ValidationFactory } from 'src/factories/validation.factory';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 jest.mock('src/factories/validation.factory');
 
@@ -15,10 +16,11 @@ describe('IssueFromReservationStrategy', () => {
   let resolver: jest.Mocked<MovementEntityResolverService>;
   let employeeRepo: any;
   let dataSource: any;
+  let eventEmitter: jest.Mocked<EventEmitter2>;
 
   const mockEntityManager = {
-    save: jest.fn().mockImplementation((entityClass, val) => Promise.resolve(val || entityClass)),
-    create: jest.fn().mockImplementation((entityClass, val) => val),
+    save: jest.fn().mockImplementation((entityClass, val) => Promise.resolve(val)),
+    create: jest.fn().mockImplementation((entityClass, val:any) => ({id: 1, ...val})),
   };
 
   beforeEach(async () => {
@@ -38,6 +40,10 @@ describe('IssueFromReservationStrategy', () => {
       transaction: jest.fn().mockImplementation((cb) => cb(mockEntityManager)),
     };
 
+   const mockEventEmitter = {
+     emitAsync: jest.fn(),
+   };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         IssueFromReservationStrategy,
@@ -45,6 +51,7 @@ describe('IssueFromReservationStrategy', () => {
         { provide: getRepositoryToken(Employee), useValue: mockEmployeeRepo },
         { provide: getRepositoryToken(Movement), useValue: mockMovementRepo },
         { provide: DataSource, useValue: mockDataSource },
+        { provide: EventEmitter2, useValue: mockEventEmitter},
       ],
     }).compile();
 
@@ -52,6 +59,7 @@ describe('IssueFromReservationStrategy', () => {
     resolver = module.get(MovementEntityResolverService);
     employeeRepo = module.get(getRepositoryToken(Employee));
     dataSource = module.get(DataSource);
+    eventEmitter = module.get(EventEmitter2);
   });
 
   afterEach(() => {
@@ -88,5 +96,6 @@ describe('IssueFromReservationStrategy', () => {
     }));
     
     expect(result).toBeDefined();
+    expect(eventEmitter.emitAsync).toHaveBeenCalledWith('movement.created', expect.objectContaining({ id: 1 }));
   });
 });

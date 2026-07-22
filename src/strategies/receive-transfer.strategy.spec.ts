@@ -8,6 +8,7 @@ import { DataSource } from 'typeorm';
 import { NotFoundException } from '@nestjs/common';
 import { ValidationFactory } from 'src/factories/validation.factory';
 import { ReceiveDecision } from 'src/enums/movement-type.enum';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 jest.mock('src/factories/validation.factory');
 
@@ -17,6 +18,7 @@ describe('ReceiveTransferStrategy', () => {
   let movementRepo: any;
   let warehouseRepo: any;
   let dataSource: any;
+  let eventEmitter: jest.Mocked<EventEmitter2>;
 
   const mockEntityManager = {
     save: jest.fn().mockImplementation((entityClass, val) => Promise.resolve(val || entityClass)),
@@ -26,6 +28,10 @@ describe('ReceiveTransferStrategy', () => {
     const mockRepo = {
       findOne: jest.fn(),
       find: jest.fn(),
+    };
+
+    const mockEventEmitter = {
+      emitAsync: jest.fn(),
     };
 
     const mockDataSource = {
@@ -39,6 +45,7 @@ describe('ReceiveTransferStrategy', () => {
         { provide: getRepositoryToken(Movement), useValue: mockRepo },
         { provide: getRepositoryToken(Warehouse), useValue: mockRepo },
         { provide: DataSource, useValue: mockDataSource },
+        { provide: EventEmitter2, useValue: mockEventEmitter},
       ],
     }).compile();
 
@@ -47,6 +54,7 @@ describe('ReceiveTransferStrategy', () => {
     movementRepo = module.get(getRepositoryToken(Movement));
     warehouseRepo = module.get(getRepositoryToken(Warehouse));
     dataSource = module.get(DataSource);
+    eventEmitter = module.get(EventEmitter2);
   });
 
   afterEach(() => {
@@ -89,6 +97,7 @@ describe('ReceiveTransferStrategy', () => {
     expect(mockEntityManager.save).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ status: 'COMPLETED' })); // movement completed
     
     expect(result).toEqual([mockMovement]);
+    expect(eventEmitter.emitAsync).toHaveBeenCalledWith('movement.created', expect.objectContaining({ id: 1 }));
   });
 
   it('REJECT branch: restores sourceStock, frees destinationWarehouse capacity', async () => {
@@ -116,5 +125,6 @@ describe('ReceiveTransferStrategy', () => {
     expect(mockEntityManager.save).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ status: 'REJECTED' })); // movement rejected
     
     expect(result).toEqual([mockMovement]);
+    expect(eventEmitter.emitAsync).toHaveBeenCalledWith('movement.created', expect.objectContaining({ id: 1 }));
   });
 });

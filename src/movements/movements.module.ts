@@ -18,6 +18,7 @@ import { ReceiveTransferStrategy } from 'src/strategies/receive-transfer.strateg
 import { TransferFromReservationStrategy } from 'src/strategies/transfer-from-reservation.strategy';
 import { TransferMovementStrategy } from 'src/strategies/transfer-movement.strategy';
 import { IssueFromReservationStrategy } from 'src/strategies/issue-from-reservation.strategy';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { IssueFromReservationStrategy } from 'src/strategies/issue-from-reservat
       Reservation,
       ProductVariant,
     ]),
+    EventEmitterModule.forRoot(),
   ],
   controllers: [MovementsController],
   providers: [

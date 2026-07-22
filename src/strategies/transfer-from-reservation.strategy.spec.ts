@@ -9,6 +9,7 @@ import { Movement } from 'src/movements/entities/movement.entity';
 import { DataSource } from 'typeorm';
 import { NotFoundException } from '@nestjs/common';
 import { ValidationFactory } from 'src/factories/validation.factory';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 jest.mock('src/factories/validation.factory');
 
@@ -20,6 +21,7 @@ describe('TransferFromReservationStrategy', () => {
   let warehouseRepo: any;
   let movementRepo: any;
   let dataSource: any;
+  let eventEmitter: jest.Mocked<EventEmitter2>;
 
   const mockEntityManager = {
     save: jest.fn().mockImplementation((entityClass, val) => Promise.resolve(val || entityClass)),
@@ -33,6 +35,10 @@ describe('TransferFromReservationStrategy', () => {
     
     const mockAllocation = {
       findOrCreateStock: jest.fn(),
+    };
+
+    const mockEventEmitter = {
+     emitAsync: jest.fn(),
     };
 
     employeeRepo = { findOne: jest.fn() };
@@ -52,6 +58,7 @@ describe('TransferFromReservationStrategy', () => {
         { provide: getRepositoryToken(Warehouse), useValue: warehouseRepo },
         { provide: getRepositoryToken(Movement), useValue: movementRepo },
         { provide: DataSource, useValue: mockDataSource },
+        { provide: EventEmitter2, useValue: mockEventEmitter},
       ],
     }).compile();
 
@@ -59,6 +66,7 @@ describe('TransferFromReservationStrategy', () => {
     resolver = module.get(MovementEntityResolverService);
     allocationService = module.get(StockAllocationService);
     dataSource = module.get(DataSource);
+    eventEmitter = module.get(EventEmitter2);
   });
 
   afterEach(() => {
@@ -108,5 +116,6 @@ describe('TransferFromReservationStrategy', () => {
     }));
     
     expect(result).toBeDefined();
+    expect(eventEmitter.emitAsync).toHaveBeenCalledWith('movement.created', expect.objectContaining({ id: 1 }));
   });
 });

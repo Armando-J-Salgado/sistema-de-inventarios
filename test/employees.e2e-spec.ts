@@ -62,12 +62,13 @@ describe('EmployeesModule (e2e)', () => {
           signOptions: { expiresIn: '1h' },
         }),
         EmployeesModule,
+        TypeOrmModule.forFeature([Category, Provider, Product, ProductVariant, Lot, Employee, Sku, Alert, Stock, Reservation, Movement, Warehouse]),
       ],
       providers: [JwtStrategy],
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
+    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
     await app.init();
 
     employeeRepo = moduleFixture.get<Repository<Employee>>(getRepositoryToken(Employee));
@@ -97,7 +98,7 @@ describe('EmployeesModule (e2e)', () => {
       password: hashedPassword,
       name: 'Test Employee',
       address: '456 Side St',
-      role: 'EMPLOYEE',
+      role: 'WAREHOUSE_MANAGER',
       active: true,
     });
 
@@ -113,7 +114,7 @@ describe('EmployeesModule (e2e)', () => {
       password: hashedPassword,
       name: 'Warehouse Employee',
       address: '789 Warehouse St',
-      role: 'EMPLOYEE',
+      role: 'WAREHOUSE_MANAGER',
       active: true,
       warehouse,
     });
@@ -123,7 +124,7 @@ describe('EmployeesModule (e2e)', () => {
       password: hashedPassword,
       name: 'Inactive Employee',
       address: '999 Old St',
-      role: 'EMPLOYEE',
+      role: 'ADMINISTRATOR',
       active: false,
     });
 
@@ -158,7 +159,7 @@ describe('EmployeesModule (e2e)', () => {
           password: 'Password123',
           name: 'Juan Pérez',
           address: 'Calle 1',
-          role: 'EMPLOYEE',
+          role: 'ADMINISTRATOR',
         });
 
       expect(response.status).toBe(401);
@@ -173,7 +174,7 @@ describe('EmployeesModule (e2e)', () => {
           password: 'Password123',
           name: 'Juan Pérez',
           address: 'Calle 1',
-          role: 'EMPLOYEE',
+          role: 'ADMINISTRATOR',
         });
 
       expect(response.status).toBe(403);
@@ -188,7 +189,7 @@ describe('EmployeesModule (e2e)', () => {
           password: '123',
           name: 'Juan_Perez#123',
           address: 'Calle 1',
-          role: 'EMPLOYEE',
+          role: 'ADMINISTRATOR',
         });
 
       expect(response.status).toBe(400);
@@ -203,7 +204,7 @@ describe('EmployeesModule (e2e)', () => {
           password: 'Password123',
           name: 'Juan Carlos Pérez',
           address: 'Calle 1',
-          role: 'EMPLOYEE',
+          role: 'ADMINISTRATOR',
         });
 
       expect(response.status).toBe(201);
@@ -222,7 +223,7 @@ describe('EmployeesModule (e2e)', () => {
           password: 'Password123',
           name: 'Juan Carlos Pérez',
           address: 'Calle 1',
-          role: 'EMPLOYEE',
+          role: 'ADMINISTRATOR',
         });
 
       expect(response.status).toBe(409);

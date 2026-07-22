@@ -12,6 +12,7 @@ import { MovementType } from 'src/enums/movement-type.enum';
 import { Employee } from 'src/employees/entities/employee.entity';
 import { ValidationHandler } from 'src/validations/validation.handler';
 import { ValidationFactory } from 'src/factories/validation.factory';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @Injectable()
 export class EntranceMovementStrategy implements MovementStrategy<CreateEntryDto> {
@@ -31,6 +32,7 @@ export class EntranceMovementStrategy implements MovementStrategy<CreateEntryDto
     private readonly stockRepository: Repository<Stock>,
     @InjectRepository(Movement)
     private readonly movementRepository: Repository<Movement>,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async execute(dto: CreateEntryDto): Promise<Movement> {
@@ -67,6 +69,7 @@ export class EntranceMovementStrategy implements MovementStrategy<CreateEntryDto
       totalCost: sku.unitCost * dto.quantity,
     });
 
+    this.eventEmitter.emitAsync('movement.created', movement);
     return this.movementRepository.save(movement);
   }
 
