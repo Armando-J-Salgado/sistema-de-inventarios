@@ -4,7 +4,9 @@ import { MovementsService } from './movements.service';
 import { MovementStrategyFactory } from 'src/factories/movement-strategy.factory';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Movement } from './entities/movement.entity';
+import { Reservation } from 'src/reservations/entities/reservation.entity';
 import { ReceiveTransferStrategy } from 'src/strategies/receive-transfer.strategy';
+import { AlertsService } from 'src/alerts/alerts.service';
 import { MovementType, MovementStatus } from 'src/enums/movement-type.enum';
 import { NotFoundException } from '@nestjs/common';
 import { ReceiveDecision } from 'src/enums/movement-type.enum';
@@ -13,13 +15,15 @@ describe('MovementsService', () => {
   let service: MovementsService;
   let factory: jest.Mocked<MovementStrategyFactory>;
   let repository: any;
+  let reservationRepository: any;
   let receiveStrategy: jest.Mocked<ReceiveTransferStrategy>;
+  let alertsService: jest.Mocked<AlertsService>;
 
   beforeEach(async () => {
     const mockFactory = {
       make: jest.fn(),
     };
-    
+
     const mockQueryBuilder = {
       leftJoinAndSelect: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
@@ -32,8 +36,16 @@ describe('MovementsService', () => {
       createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder),
     };
 
+    const mockReservationRepo = {
+      findOne: jest.fn(),
+    };
+
     const mockReceiveStrategy = {
       execute: jest.fn(),
+    };
+
+    const mockAlertsService = {
+      evaluateAndGenerate: jest.fn().mockResolvedValue(null),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -41,14 +53,18 @@ describe('MovementsService', () => {
         MovementsService,
         { provide: MovementStrategyFactory, useValue: mockFactory },
         { provide: getRepositoryToken(Movement), useValue: mockRepo },
+        { provide: getRepositoryToken(Reservation), useValue: mockReservationRepo },
         { provide: ReceiveTransferStrategy, useValue: mockReceiveStrategy },
+        { provide: AlertsService, useValue: mockAlertsService },
       ],
     }).compile();
 
     service = module.get<MovementsService>(MovementsService);
     factory = module.get(MovementStrategyFactory);
     repository = module.get(getRepositoryToken(Movement));
+    reservationRepository = module.get(getRepositoryToken(Reservation));
     receiveStrategy = module.get(ReceiveTransferStrategy);
+    alertsService = module.get(AlertsService);
   });
 
   it('createEntry — calls factory with ENTRANCE and executes', async () => {
@@ -63,51 +79,76 @@ describe('MovementsService', () => {
     expect(res).toEqual({ id: 1 });
   });
 
-  it('createIssue — calls factory with ISSUE and executes', async () => {
+  it('createIssue — calls factory with ISSUE, executes and evaluates alert for dto variant', async () => {
     const strategy = { execute: jest.fn().mockResolvedValue([{ id: 1 }]) };
     factory.make.mockReturnValue(strategy as any);
-    const dto: any = { quantity: 5 };
-    
+    const dto: any = { quantity: 5, productVariantId: 3 };
+
     const res = await service.createIssue(dto);
-    
+
     expect(factory.make).toHaveBeenCalledWith(MovementType.ISSUE);
     expect(strategy.execute).toHaveBeenCalledWith(dto);
+    expect(alertsService.evaluateAndGenerate).toHaveBeenCalledWith(3);
     expect(res).toEqual([{ id: 1 }]);
   });
 
-  it('createIssueFromTransfer — calls factory with ISSUE_FROM_RESERVATION and executes', async () => {
+  it('createIssue — does not propagate an alert evaluation failure', async () => {
+    const strategy = { execute: jest.fn().mockResolvedValue([{ id: 1 }]) };
+    factory.make.mockReturnValue(strategy as any);
+    alertsService.evaluateAndGenerate.mockRejectedValueOnce(new Error('boom'));
+    const dto: any = { quantity: 5, productVariantId: 3 };
+
+    const res = await service.createIssue(dto);
+
+    expect(res).toEqual([{ id: 1 }]);
+  });
+
+  it('createIssueFromTransfer — calls factory with ISSUE_FROM_RESERVATION, executes and evaluates alert via reservation', async () => {
     const strategy = { execute: jest.fn().mockResolvedValue({ id: 1 }) };
     factory.make.mockReturnValue(strategy as any);
+    reservationRepository.findOne.mockResolvedValue({
+      stock: { sku: { productVariant: { id: 7 } } },
+    });
     const dto: any = { reservationId: 1 };
-    
+
     const res = await service.createIssueFromTransfer(dto);
-    
+
     expect(factory.make).toHaveBeenCalledWith(MovementType.ISSUE_FROM_RESERVATION);
     expect(strategy.execute).toHaveBeenCalledWith(dto);
+    expect(reservationRepository.findOne).toHaveBeenCalledWith({
+      where: { id: 1 },
+      relations: { stock: { sku: { productVariant: true } } },
+    });
+    expect(alertsService.evaluateAndGenerate).toHaveBeenCalledWith(7);
     expect(res).toEqual({ id: 1 });
   });
 
-  it('createTransfer — calls factory with TRANSFER and executes', async () => {
+  it('createTransfer — calls factory with TRANSFER, executes and evaluates alert for origin variant', async () => {
     const strategy = { execute: jest.fn().mockResolvedValue([{ id: 1 }]) };
     factory.make.mockReturnValue(strategy as any);
-    const dto: any = { quantity: 5 };
-    
+    const dto: any = { quantity: 5, productVariantId: 4 };
+
     const res = await service.createTransfer(dto);
-    
+
     expect(factory.make).toHaveBeenCalledWith(MovementType.TRANSFER);
     expect(strategy.execute).toHaveBeenCalledWith(dto);
+    expect(alertsService.evaluateAndGenerate).toHaveBeenCalledWith(4);
     expect(res).toEqual([{ id: 1 }]);
   });
 
-  it('createTransferFromReservation — calls factory with TRANSFER_FROM_RESERVATION and executes', async () => {
+  it('createTransferFromReservation — calls factory with TRANSFER_FROM_RESERVATION, executes and evaluates alert via reservation', async () => {
     const strategy = { execute: jest.fn().mockResolvedValue({ id: 1 }) };
     factory.make.mockReturnValue(strategy as any);
+    reservationRepository.findOne.mockResolvedValue({
+      stock: { sku: { productVariant: { id: 9 } } },
+    });
     const dto: any = { reservationId: 1 };
-    
+
     const res = await service.createTransferFromReservation(dto);
-    
+
     expect(factory.make).toHaveBeenCalledWith(MovementType.TRANSFER_FROM_RESERVATION);
     expect(strategy.execute).toHaveBeenCalledWith(dto);
+    expect(alertsService.evaluateAndGenerate).toHaveBeenCalledWith(9);
     expect(res).toEqual({ id: 1 });
   });
 

@@ -34,7 +34,7 @@ export class EntranceMovementStrategy implements MovementStrategy<CreateEntryDto
   ) {}
 
   async execute(dto: CreateEntryDto): Promise<Movement> {
-    const sku = await this.skuRepository.findOne({ where: { id: dto.skuId } });
+    const sku = await this.skuRepository.findOne({ where: { id: dto.skuId }, relations: { lot: true } });
     if (!sku)
       throw new NotFoundException(
         `Products with SKU ${dto.skuId} could not be found`,

@@ -7,6 +7,7 @@ import { Sku } from '../../skus/entities/skus.entity';
 import { ProductVariant } from '../../product-variants/entities/product-variant.entity';
 import { Stock } from '../../stocks/entities/stock.entity';
 import { Movement } from '../../movements/entities/movement.entity';
+import { MovementType, MovementStatus } from 'src/enums/movement-type.enum';
 
 @Injectable()
 export class GlobalAnalyticsRepository implements IAnalyticsRepository {
@@ -39,9 +40,12 @@ export class GlobalAnalyticsRepository implements IAnalyticsRepository {
       .leftJoin('sku.productVariant', 'variant')
       .leftJoin('variant.product', 'product')
       .where('product.id = :productId', { productId })
-      .andWhere("movement.type = 'EXIT'")
+      .andWhere('movement.type IN (:...consumptionTypes)', {
+        consumptionTypes: [MovementType.ISSUE, MovementType.ISSUE_FROM_RESERVATION],
+      })
+      .andWhere('movement.status = :status', { status: MovementStatus.COMPLETED })
       .getRawOne();
-    
+
     const exitSum = parseFloat(exitSumQuery?.sum || '0');
 
     const stockSumQuery = await this.stockRepo.createQueryBuilder('stock')
@@ -68,7 +72,10 @@ export class GlobalAnalyticsRepository implements IAnalyticsRepository {
       .leftJoin('stock.sku', 'sku')
       .leftJoin('sku.productVariant', 'variant')
       .leftJoin('variant.product', 'product')
-      .where("movement.type = 'EXIT'")
+      .where('movement.type IN (:...consumptionTypes)', {
+        consumptionTypes: [MovementType.ISSUE, MovementType.ISSUE_FROM_RESERVATION],
+      })
+      .andWhere('movement.status = :status', { status: MovementStatus.COMPLETED })
       .groupBy('product.id')
       .addGroupBy('product.name')
       .orderBy('SUM(movement.quantity)', 'DESC')
@@ -103,7 +110,10 @@ export class GlobalAnalyticsRepository implements IAnalyticsRepository {
       .select('SUM(movement.quantity)', 'sum')
       .leftJoin('movement.sourceStock', 'stock')
       .where('stock.skuId = :skuId', { skuId })
-      .andWhere("movement.type = 'EXIT'")
+      .andWhere('movement.type IN (:...consumptionTypes)', {
+        consumptionTypes: [MovementType.ISSUE, MovementType.ISSUE_FROM_RESERVATION],
+      })
+      .andWhere('movement.status = :status', { status: MovementStatus.COMPLETED })
       .andWhere('movement.date >= :thirtyDaysAgo', { thirtyDaysAgo })
       .getRawOne();
       

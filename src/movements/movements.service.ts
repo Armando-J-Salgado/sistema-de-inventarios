@@ -12,6 +12,8 @@ import { ReceiveTransferDto } from './dto/receive-transfer.dto';
 import { ReceiveTransferStrategy } from 'src/strategies/receive-transfer.strategy';
 import { FindMovementsQueryDto } from './dto/find-movements.dto';
 import { IssueFromReservationDto } from './dto/issue-from-reservation.dto';
+import { Reservation } from 'src/reservations/entities/reservation.entity';
+import { AlertsService } from 'src/alerts/alerts.service';
 
 @Injectable()
 export class MovementsService {
@@ -19,34 +21,67 @@ export class MovementsService {
     private readonly strategyFactory: MovementStrategyFactory,
     @InjectRepository(Movement)
     private readonly movementRepository: Repository<Movement>,
+    @InjectRepository(Reservation)
+    private readonly reservationRepository: Repository<Reservation>,
     private receiveTransferStrategy: ReceiveTransferStrategy,
+    private readonly alertsService: AlertsService,
   ) {}
 
-  createEntry(dto: CreateEntryDto) {
+  async createEntry(dto: CreateEntryDto) {
     return this.strategyFactory.make(MovementType.ENTRANCE).execute(dto);
   }
 
-  createIssue(dto: CreateIssueDto) {
-    return this.strategyFactory.make(MovementType.ISSUE).execute(dto);
+  async createIssue(dto: CreateIssueDto) {
+    const result = await this.strategyFactory.make(MovementType.ISSUE).execute(dto);
+    await this.tryEvaluateAlert(dto.productVariantId);
+    return result;
   }
 
-  createIssueFromTransfer(dto: IssueFromReservationDto) {
-    return this.strategyFactory.make(MovementType.ISSUE_FROM_RESERVATION).execute(dto);
+  async createIssueFromTransfer(dto: IssueFromReservationDto) {
+    const result = await this.strategyFactory.make(MovementType.ISSUE_FROM_RESERVATION).execute(dto);
+    const variantId = await this.resolveVariantIdFromReservation(dto.reservationId);
+    if (variantId !== null) {
+      await this.tryEvaluateAlert(variantId);
+    }
+    return result;
   }
 
-
-  createTransfer(dto: TransferMovementDto) {
-    return this.strategyFactory.make(MovementType.TRANSFER).execute(dto);
+  async createTransfer(dto: TransferMovementDto) {
+    const result = await this.strategyFactory.make(MovementType.TRANSFER).execute(dto);
+    await this.tryEvaluateAlert(dto.productVariantId);
+    return result;
   }
 
-  createTransferFromReservation(dto: TransferFromReservationDto) {
-    return this.strategyFactory
+  async createTransferFromReservation(dto: TransferFromReservationDto) {
+    const result = await this.strategyFactory
       .make(MovementType.TRANSFER_FROM_RESERVATION)
       .execute(dto);
+    const variantId = await this.resolveVariantIdFromReservation(dto.reservationId);
+    if (variantId !== null) {
+      await this.tryEvaluateAlert(variantId);
+    }
+    return result;
   }
 
   receiveTransfer(dto: ReceiveTransferDto) {
     return this.receiveTransferStrategy.execute(dto); // inyectada directo, fuera del factory
+  }
+
+  private async resolveVariantIdFromReservation(reservationId: number): Promise<number | null> {
+    const reservation = await this.reservationRepository.findOne({
+      where: { id: reservationId },
+      relations: { stock: { sku: { productVariant: true } } },
+    });
+    return reservation?.stock?.sku?.productVariant?.id ?? null;
+  }
+
+  private async tryEvaluateAlert(variantId: number): Promise<void> {
+    try {
+      await this.alertsService.evaluateAndGenerate(variantId);
+    } catch (error) {
+      // una alerta fallida no debe romper el movimiento
+      console.error(`Alert evaluation failed for variant ${variantId}:`, error);
+    }
   }
 
   async findOne(id: number) {

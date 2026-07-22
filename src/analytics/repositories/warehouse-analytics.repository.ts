@@ -6,6 +6,7 @@ import { Product } from '../../products/entities/product.entity';
 import { Sku } from '../../skus/entities/skus.entity';
 import { Stock } from '../../stocks/entities/stock.entity';
 import { Movement } from '../../movements/entities/movement.entity';
+import { MovementType, MovementStatus } from 'src/enums/movement-type.enum';
 
 @Injectable({ scope: Scope.REQUEST })
 export class WarehouseAnalyticsRepository implements IAnalyticsRepository {
@@ -52,9 +53,12 @@ export class WarehouseAnalyticsRepository implements IAnalyticsRepository {
       .leftJoin('variant.product', 'product')
       .where('product.id = :productId', { productId })
       .andWhere('warehouse.id = :warehouseId', { warehouseId: this.warehouseId })
-      .andWhere("movement.type = 'EXIT'")
+      .andWhere('movement.type IN (:...consumptionTypes)', {
+        consumptionTypes: [MovementType.ISSUE, MovementType.ISSUE_FROM_RESERVATION],
+      })
+      .andWhere('movement.status = :status', { status: MovementStatus.COMPLETED })
       .getRawOne();
-    
+
     const exitSum = parseFloat(exitSumQuery?.sum || '0');
 
     const stockSumQuery = await this.stockRepo.createQueryBuilder('stock')
@@ -85,7 +89,10 @@ export class WarehouseAnalyticsRepository implements IAnalyticsRepository {
       .leftJoin('stock.sku', 'sku')
       .leftJoin('sku.productVariant', 'variant')
       .leftJoin('variant.product', 'product')
-      .where("movement.type = 'EXIT'")
+      .where('movement.type IN (:...consumptionTypes)', {
+        consumptionTypes: [MovementType.ISSUE, MovementType.ISSUE_FROM_RESERVATION],
+      })
+      .andWhere('movement.status = :status', { status: MovementStatus.COMPLETED })
       .andWhere('warehouse.id = :warehouseId', { warehouseId: this.warehouseId })
       .groupBy('product.id')
       .addGroupBy('product.name')
@@ -127,7 +134,10 @@ export class WarehouseAnalyticsRepository implements IAnalyticsRepository {
       .leftJoin('stock.warehouse', 'warehouse')
       .where('stock.skuId = :skuId', { skuId })
       .andWhere('warehouse.id = :warehouseId', { warehouseId: this.warehouseId })
-      .andWhere("movement.type = 'EXIT'")
+      .andWhere('movement.type IN (:...consumptionTypes)', {
+        consumptionTypes: [MovementType.ISSUE, MovementType.ISSUE_FROM_RESERVATION],
+      })
+      .andWhere('movement.status = :status', { status: MovementStatus.COMPLETED })
       .andWhere('movement.date >= :thirtyDaysAgo', { thirtyDaysAgo })
       .getRawOne();
       
