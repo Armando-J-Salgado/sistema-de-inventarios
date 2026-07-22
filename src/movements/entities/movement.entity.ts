@@ -22,12 +22,16 @@ export class Movement {
 	status: string;
 
 	@ApiProperty({example: '2026-07-19T19:17:00.00Z', description: 'Date of the movement'})
-
+	@Column({type: 'timestamp'})
 	date: Date;
 
 	@ApiProperty({example: 120.5, description: 'Total cost of the movement'})
 	@Column({type: 'float'})
 	totalCost: number;
+
+	@ApiProperty({example: 1, description: 'Transfer group ID'})
+	@Column({type: 'uuid', nullable: true})
+	transferGroupId: string;
 
 	@ApiProperty({example: '2026-07-19T19:17:00.00Z', description: 'Saves the time of creation'})
 	@CreateDateColumn()

@@ -11,7 +11,7 @@ export class Sku {
     id: string;
 
     @ApiProperty({example: '2026-07-19T19:17:00.00Z', description: 'Date the variant from the lot was received'})
-
+    @Column({type: 'timestamp'})
     dateOfEntry: Date;
 
     @ApiProperty({example: 10, description: 'Number of units received'})
@@ -23,7 +23,7 @@ export class Sku {
     unitCost: number;
 
     @ApiProperty({example: '2026-07-19T19:17:00.00Z', description: 'Recommended date before consumption'})
-
+    @Column({type: 'timestamp'})
     bestBeforeDate: Date;
 
     @ApiProperty({example: true, description: 'Defines if the variant is active'})
