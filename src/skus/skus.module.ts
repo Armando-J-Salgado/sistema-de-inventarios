@@ -11,5 +11,6 @@ import { Stock } from 'src/stocks/entities/stock.entity';
   imports: [TypeOrmModule.forFeature([Sku, ProductVariant, Lot, Stock])],
   controllers: [SkusController],
   providers: [SkusService],
+  exports: [SkusService],
 })
 export class SkusModule {}
