@@ -10,9 +10,23 @@ import { TopMovingCalculator } from './calculators/top-moving.calculator';
 import { NeedReorderCalculator } from './calculators/need-reorder.calculator';
 import { AnalyticsService } from './analytics.service';
 import { Warehouse } from '../warehouses/entities/warehouse.entity';
+import { Movement } from '../movements/entities/movement.entity';
+import { Stock } from '../stocks/entities/stock.entity';
+import { Sku } from '../skus/entities/skus.entity';
+import { ProductVariant } from '../product-variants/entities/product-variant.entity';
+import { Product } from '../products/entities/product.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Warehouse])],
+  imports: [
+    TypeOrmModule.forFeature([
+      Warehouse, 
+      Movement, 
+      Stock, 
+      Sku, 
+      ProductVariant, 
+      Product
+    ]),
+  ],
   controllers: [
     GlobalAnalyticsController,
     WarehouseAnalyticsController,
