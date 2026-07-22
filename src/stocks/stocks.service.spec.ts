@@ -1,11 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { StocksService } from './stocks.service';
 import { Stock } from './entities/stock.entity';
 import { Reservation } from 'src/reservations/entities/reservation.entity';
 import { Sku } from 'src/skus/entities/skus.entity';
+import { ACTIVE_RESERVATION_STATUSES } from './constants';
 
 describe('StocksService', () => {
   let service: StocksService;
@@ -37,7 +38,7 @@ describe('StocksService', () => {
     quantity: 5,
     fromDate: now,
     toDate: future,
-    status: 'PENDING',
+    status: 'ACTIVE',
     createdAt: now,
     updatedAt: now,
     deletedAt: null as unknown as Date,
@@ -120,13 +121,13 @@ describe('StocksService', () => {
       await expect(service.getAvailable(1)).resolves.toBe(25);
     });
 
-    it('does not discount reservations in a non-active status', async () => {
+    it('only queries ACTIVE reservations (COMPLETED/CANCELLED never discount)', async () => {
       stockRepository.findOne.mockResolvedValue(makeStock({ quantity: 25 }));
       reservationRepository.find.mockResolvedValue([]);
       await service.getAvailable(1);
       expect(reservationRepository.find).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: expect.objectContaining({ status: expect.anything() }),
+          where: expect.objectContaining({ status: In(ACTIVE_RESERVATION_STATUSES) }),
         }),
       );
     });

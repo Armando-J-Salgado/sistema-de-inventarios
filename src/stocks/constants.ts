@@ -1,6 +1,6 @@
 /**
  * Reservation statuses that count as "active" when computing available stock.
- * Centralized here so the pending team decision on Reservation.status values
- * (see docs/Plan de Implementacion - Alex.md, costura #2) only needs one edit.
+ * Confirmed with the team 2026-07-21 (Reservation.status values: ACTIVE,
+ * COMPLETED, CANCELLED) — only ACTIVE discounts from available stock.
  */
-export const ACTIVE_RESERVATION_STATUSES = ['PENDING', 'ACTIVA'];
+export const ACTIVE_RESERVATION_STATUSES = ['ACTIVE'];
