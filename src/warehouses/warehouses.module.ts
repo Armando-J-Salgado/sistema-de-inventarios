@@ -10,5 +10,6 @@ import { Stock } from 'src/stocks/entities/stock.entity';
   imports: [TypeOrmModule.forFeature([Warehouse, Employee, Stock])],
   controllers: [WarehousesController],
   providers: [WarehousesService],
+  exports: [WarehousesService],
 })
 export class WarehousesModule {}

@@ -31,8 +31,8 @@ export class ReceiveTransferStrategy implements MovementStrategy<ReceiveTransfer
     const movements = await this.movementRepository.find({
       where: { transferGroupId: dto.transferGroupId, status: MovementStatus.IN_TRANSIT },
       relations: {
-        sourceStock: { warehouse: true, sku: true },
-        destinationStock: { warehouse: true, sku: true },
+        sourceStock: { warehouse: { administrator: true }, sku: true },
+        destinationStock: { warehouse: { administrator: true }, sku: true },
       },
     });
     if (!movements.length) {

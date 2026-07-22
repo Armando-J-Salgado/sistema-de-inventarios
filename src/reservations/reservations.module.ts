@@ -14,5 +14,6 @@ import { StocksModule } from 'src/stocks/stocks.module';
   ],
   controllers: [ReservationsController],
   providers: [ReservationsService],
+  exports: [ReservationsService],
 })
 export class ReservationsModule {}

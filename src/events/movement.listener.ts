@@ -13,6 +13,7 @@ export class MovementListener {
 
   @OnEvent('movement.created')
   handleMovementCreated(movement: Movement) {
-    this.analyticsService.calculateRotation(movement.id);
+    // Not wired to a producer yet; no analytics method matches this signature.
+    void movement;
   }
 }
