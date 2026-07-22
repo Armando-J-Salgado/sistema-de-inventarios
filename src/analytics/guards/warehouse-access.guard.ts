@@ -38,7 +38,7 @@ export class WarehouseAccessGuard implements CanActivate {
         throw new ForbiddenException('Warehouse not found');
       }
 
-      if (warehouse.employee?.id !== user.employeeId) {
+      if (warehouse.administrator?.id !== user.employeeId) {
         throw new ForbiddenException('Access denied to this warehouse analytics');
       }
       

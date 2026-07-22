@@ -30,6 +30,11 @@ describe('AuthModule (e2e)', () => {
   let app: INestApplication<App>;
   let employeeRepo: Repository<Employee>;
 
+  // Generate unique emails to prevent collisions with other test files running in parallel
+  const adminEmail = `admin-${Date.now()}@test.com`;
+  const inactiveEmail = `inactive-${Date.now()}@test.com`;
+  const testPassword = 'ValidPass1!';
+
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [
@@ -53,13 +58,10 @@ describe('AuthModule (e2e)', () => {
 
     employeeRepo = moduleFixture.get<Repository<Employee>>(getRepositoryToken(Employee));
 
-    // Clean test employees if previously existing
-    await employeeRepo.delete({ email: 'admin@test.com' });
-    await employeeRepo.delete({ email: 'inactive@test.com' });
-
-    const activeHashedPassword = await bcrypt.hash('ValidPass1!', 10);
+    // Create test employees with UNIQUE emails
+    const activeHashedPassword = await bcrypt.hash(testPassword, 10);
     await employeeRepo.save({
-      email: 'admin@test.com',
+      email: adminEmail,
       password: activeHashedPassword,
       name: 'Test Admin',
       address: '123 Main St',
@@ -67,9 +69,9 @@ describe('AuthModule (e2e)', () => {
       active: true,
     });
 
-    const inactiveHashedPassword = await bcrypt.hash('ValidPass1!', 10);
+    const inactiveHashedPassword = await bcrypt.hash(testPassword, 10);
     await employeeRepo.save({
-      email: 'inactive@test.com',
+      email: inactiveEmail,
       password: inactiveHashedPassword,
       name: 'Inactive Employee',
       address: '456 Side St',
@@ -80,8 +82,9 @@ describe('AuthModule (e2e)', () => {
 
   afterAll(async () => {
     if (employeeRepo) {
-      await employeeRepo.delete({ email: 'admin@test.com' });
-      await employeeRepo.delete({ email: 'inactive@test.com' });
+      // Hard delete the unique test employees
+      await employeeRepo.createQueryBuilder().delete().where('email = :email', { email: adminEmail }).execute();
+      await employeeRepo.createQueryBuilder().delete().where('email = :email', { email: inactiveEmail }).execute();
     }
     if (app) {
       await app.close();
@@ -101,7 +104,7 @@ describe('AuthModule (e2e)', () => {
     it('should return 400 Bad Request when email format is invalid', async () => {
       const response = await request(app.getHttpServer())
         .post('/auth/login')
-        .send({ email: 'not-an-email', password: 'ValidPass1!' });
+        .send({ email: 'not-an-email', password: testPassword });
 
       expect(response.status).toBe(400);
     });
@@ -109,7 +112,7 @@ describe('AuthModule (e2e)', () => {
     it('should return 400 Bad Request when password field is missing', async () => {
       const response = await request(app.getHttpServer())
         .post('/auth/login')
-        .send({ email: 'admin@test.com' });
+        .send({ email: adminEmail });
 
       expect(response.status).toBe(400);
     });
@@ -117,7 +120,7 @@ describe('AuthModule (e2e)', () => {
     it('should return 400 Bad Request when email is empty string', async () => {
       const response = await request(app.getHttpServer())
         .post('/auth/login')
-        .send({ email: '', password: 'ValidPass1!' });
+        .send({ email: '', password: testPassword });
 
       expect(response.status).toBe(400);
     });
@@ -125,7 +128,7 @@ describe('AuthModule (e2e)', () => {
     it('should return 401 Unauthorized for incorrect password', async () => {
       const response = await request(app.getHttpServer())
         .post('/auth/login')
-        .send({ email: 'admin@test.com', password: 'WrongPassword!' });
+        .send({ email: adminEmail, password: 'WrongPassword!' });
 
       expect(response.status).toBe(401);
       expect(response.body.message).toBe('Invalid credentials');
@@ -134,7 +137,7 @@ describe('AuthModule (e2e)', () => {
     it('should return 401 Unauthorized for non-existent email', async () => {
       const response = await request(app.getHttpServer())
         .post('/auth/login')
-        .send({ email: 'nobody@test.com', password: 'ValidPass1!' });
+        .send({ email: 'nobody@test.com', password: testPassword });
 
       expect(response.status).toBe(401);
       expect(response.body.message).toBe('Invalid credentials');
@@ -143,7 +146,7 @@ describe('AuthModule (e2e)', () => {
     it('should return 401 Unauthorized for inactive employee', async () => {
       const response = await request(app.getHttpServer())
         .post('/auth/login')
-        .send({ email: 'inactive@test.com', password: 'ValidPass1!' });
+        .send({ email: inactiveEmail, password: testPassword });
 
       expect(response.status).toBe(401);
       expect(response.body.message).toBe('Invalid credentials');
@@ -152,7 +155,7 @@ describe('AuthModule (e2e)', () => {
     it('should return 201 Created with access_token on valid login', async () => {
       const response = await request(app.getHttpServer())
         .post('/auth/login')
-        .send({ email: 'admin@test.com', password: 'ValidPass1!' });
+        .send({ email: adminEmail, password: testPassword });
 
       expect(response.status).toBe(201);
       expect(response.body).toHaveProperty('access_token');
@@ -162,7 +165,7 @@ describe('AuthModule (e2e)', () => {
       expect(tokenParts.length).toBe(3);
 
       const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString());
-      expect(payload.email).toBe('admin@test.com');
+      expect(payload.email).toBe(adminEmail);
       expect(payload.roles).toBe('ADMINISTRATOR');
       expect(payload.sub).toBeDefined();
     });
