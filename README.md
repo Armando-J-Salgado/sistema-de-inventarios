@@ -1,98 +1,94 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Sistema de Inventario Multi-Bodega
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+API RESTful para administración de inventario en múltiples bodegas. Proyecto final del curso de APIs (ESEN).
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Stack
 
-## Description
+- [NestJS](https://nestjs.com/) 11 + TypeScript
+- [TypeORM](https://typeorm.io/) 0.3 sobre PostgreSQL (`synchronize: true` en desarrollo — el esquema se deriva de las entidades en cada arranque, no hay migraciones)
+- Autenticación con JWT (`@nestjs/passport` + `passport-jwt`) y autorización por rol (`@Roles` + `RolesGuard`)
+- Documentación con Swagger (`@nestjs/swagger`)
+- Validación de DTOs con `class-validator` / `class-transformer`
+- Tests con Jest (unitarios) y Supertest (e2e)
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Modelo de dominio
 
-## Project setup
-
-```bash
-$ npm install
+```
+Category → Product → ProductVariant → Sku (Sku también pertenece a un Lot, y el Lot a un Provider)
+ProductVariant (reorderPoint) ──< Sku ──< Stock (quantity, warehouse) ──< Reservation (quantity, status)
+                                                    └──< Movement (source/destination)
+Employee administra una Warehouse
 ```
 
-## Compile and run the project
+Un `Stock` es la cantidad de un `Sku` físicamente almacenada en una `Warehouse`. Sobre un `Stock` cuelgan `Reservation` (aparta cantidad) y `Movement` (entrada/salida/transferencia).
 
-```bash
-# development
-$ npm run start
+## Requisitos
 
-# watch mode
-$ npm run start:dev
+- Node.js 18+
+- PostgreSQL en ejecución (local o remoto)
 
-# production mode
-$ npm run start:prod
+## Variables de entorno
+
+Copiar `.env.example` a `.env` y completar:
+
+```
+DB_HOST=""
+DB_PORT=""
+DB_USERNAME=""
+DB_PASSWORD=""
+DB_NAME=""
+PORT=""
+SECRET_KEY=""
 ```
 
-## Run tests
+`SECRET_KEY` no aparece en `.env.example` pero es **obligatoria**: firma y verifica los JWT (`AuthModule`, `JwtStrategy`). Sin ella los tokens quedan firmados con cadena vacía y no son verificables de forma segura.
+
+## Instalación y arranque
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+npm install
+npm run start:dev      # modo watch, requiere PostgreSQL accesible con las credenciales del .env
 ```
 
-## Deployment
+- `npm run build` — compila a `dist/` (`nest build`)
+- `npm run start:prod` — corre el build compilado (`node dist/main`)
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+Con `synchronize: true`, TypeORM crea/actualiza las tablas automáticamente contra la base indicada en `.env` al arrancar — no hace falta correr migraciones.
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+## Documentación (Swagger)
+
+Con el servidor corriendo: **http://localhost:$PORT/api**
+
+Incluye los tags `categories`, `variants`, `stocks` y `alerts`, con los códigos de respuesta (200/201/400/401/403/404) documentados por endpoint. Las rutas protegidas exigen un Bearer token (`Authorization: Bearer <jwt>`), obtenido en `POST /auth/login`.
+
+## Tests
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+npm test                       # suite completa (Jest, rootDir=src)
+npm test -- stocks             # solo specs cuyo path matchea "stocks"
+npm test -- -t "should be defined"
+npm run test:cov               # cobertura (rúbrica exige ≥ 70%)
+npm run test:e2e               # jest --config ./test/jest-e2e.json (requiere PostgreSQL vivo, AppModule completo)
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+Los módulos `product-variants`, `stocks` y `alerts` se construyeron con TDD estricto (spec en rojo antes de implementar) y tienen cobertura de línea >80% cada uno, ejecutable sin base de datos (repositorios de TypeORM mockeados con `getRepositoryToken`). El resto de módulos (`categories`, `auth`, etc.) es responsabilidad de otros integrantes del equipo.
 
-## Resources
+## Módulos y endpoints
 
-Check out a few resources that may come in handy when working with NestJS:
+| Módulo | Endpoints | Notas |
+| --- | --- | --- |
+| `auth` | `POST /auth/login` | Devuelve JWT `{ sub, email, roles }` (`roles` es el rol único del empleado, no un arreglo) |
+| `categories` | CRUD completo | Soft delete por `active`; filtro `?active=` en `findAll` |
+| `product-variants` | `GET /product-variants`, `GET /product-variants/:id`, `POST`, `PATCH /:id`, `DELETE /:id` | `POST`/`PATCH`/`DELETE` requieren rol `ADMINISTRATOR`; `findAll` solo devuelve variantes activas |
+| `stocks` | `GET /stocks`, `GET /stocks/:id`, `GET /stocks/:id/available`, `GET /stocks/available?variantId=&warehouseId=`, `PATCH /stocks/:id`, `DELETE /stocks/:id` | **Sin `POST /stocks`**: la fila de Stock la crea una entrada de `MovementService`, no este módulo. `DELETE` es baja excepcional (producto contaminado, siniestro), no el flujo de salida normal |
+| `alerts` | `GET /alerts`, `GET /alerts/:id` | Solo lectura: las alertas se autogeneran vía `AlertsService.evaluateAndGenerate(variantId)`, invocado manualmente hasta que el equipo defina el evento `movement.created` |
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+## Reglas de negocio implementadas
 
-## Support
+- **Stock disponible en tiempo real** (`StocksService.getAvailable`): `quantity − Σ(reservas activas)`. Una reserva cuenta como activa si su `status` está en `ACTIVE_RESERVATION_STATUSES` (`src/stocks/constants.ts`) y su `toDate` no está en el pasado. El disponible nunca es negativo — sobre-reserva se clampa a `0`.
+- **Disponible agregado por variante/bodega** (`StocksService.getAvailableByVariantWarehouse`): suma el disponible (ya clampado) de todos los `Stock` activos (no soft-deleted) de los `Sku` de esa variante; si se pasa `warehouseId` filtra a esa bodega. Variante sin SKUs o SKUs sin stock → `0`, sin lanzar excepción.
+- **Alertas de reorden** (`AlertsService.evaluateAndGenerate`): genera una `Alert` cuando el disponible total de una variante activa es `<= reorderPoint` (frontera inclusiva; con `reorderPoint = 0` solo alerta al llegar a `0`). No duplica alertas para la misma variante si ya existe una generada en las últimas 24 horas. Variante inactiva → no genera; variante inexistente → `404`.
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+## Decisiones de equipo registradas
 
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+Ver [`docs/Plan de Implementacion - Alex.md`](docs/Plan%20de%20Implementacion%20-%20Alex.md) para el detalle de las costuras de integración con Movements/Reservations (Armando) y las decisiones pendientes/resueltas durante la implementación de `product-variants`, `stocks` y `alerts`.
