@@ -9,6 +9,7 @@ async function bootstrap() {
     .setDescription('Documentation of the RESTful API.')
     .setVersion('1.0')
     .addBearerAuth()
+    .addTag('categories')
     .build();
   
   const document = SwaggerModule.createDocument(app, config);

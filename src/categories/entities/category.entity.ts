@@ -4,34 +4,31 @@ import { Column, CreateDateColumn, DeleteDateColumn, Entity, OneToMany, PrimaryG
 
 @Entity()
 export class Category {
-    @ApiProperty({example: 1, description: 'Unique identifier of the category'})
+    @ApiProperty({ example: 1, description: 'Unique identifier of the category' })
     @PrimaryGeneratedColumn()
     id: number;
 
-    @ApiProperty({example: 'Red Wines', description: 'Product type'})
+    @ApiProperty({ example: 'Red Wines', description: 'Product type' })
     @Column()
     name: string;
 
-    @ApiProperty({example: true, description: 'Defines if the category is active'})
-    @Column({default: true})
+    @ApiProperty({ example: true, description: 'Defines if the category is active' })
+    @Column({ default: true })
     active: boolean;
 
-    @ApiProperty({example: '2026-07-19T19:17:00.00Z', description: 'Saves the time of creation'})
+    @ApiProperty({ example: '2026-07-19T19:17:00.00Z', description: 'Saves the time of creation' })
     @CreateDateColumn()
-    @Column({type: 'timestamp'})
     createdAt: Date;
 
-    @ApiProperty({example: '2026-07-19T19:17:00.00Z', description: 'Saves the time of the last update'})
+    @ApiProperty({ example: '2026-07-19T19:17:00.00Z', description: 'Saves the time of the last update' })
     @UpdateDateColumn()
-    @Column({type: 'timestamp'})
     updatedAt: Date;
 
-    @ApiProperty({example: '2026-07-19T19:17:00.00Z', description: 'Saves the time of deactivation'})
+    @ApiProperty({ example: '2026-07-19T19:17:00.00Z', description: 'Saves the time of deactivation' })
     @DeleteDateColumn()
-    @Column({type: 'timestamp'})
     deletedAt: Date;
 
-    @ApiProperty({type: ()=>[Product], description: 'Lists of products related to the category'})
-    @OneToMany(()=>Product, (product)=>product.category)
+    @ApiProperty({ type: () => [Product], description: 'Lists of products related to the category' })
+    @OneToMany(() => Product, (product) => product.category)
     products: Product[];
 }
