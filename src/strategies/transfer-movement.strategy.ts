@@ -15,6 +15,7 @@ import { MovementStatus, MovementType } from 'src/enums/movement-type.enum';
 import { MovementValidationContext } from 'src/validations/movement-validation-context.interface';
 import { ValidationHandler } from 'src/validations/validation.handler';
 import { ValidationFactory } from 'src/factories/validation.factory';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @Injectable()
 export class TransferMovementStrategy implements MovementStrategy<TransferMovementDto> {
@@ -31,6 +32,7 @@ export class TransferMovementStrategy implements MovementStrategy<TransferMoveme
     @InjectRepository(Warehouse) private readonly warehouseRepository: Repository<Warehouse>,
     @InjectRepository(Movement) private readonly movementRepository: Repository<Movement>,
     private readonly dataSource: DataSource,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async execute(dto: TransferMovementDto): Promise<Movement[]> {
@@ -87,6 +89,7 @@ export class TransferMovementStrategy implements MovementStrategy<TransferMoveme
           transferGroupId,
         });
         movements.push(await manager.save(Movement, movement));
+        this.eventEmitter.emitAsync('movement.created', movement);
       }
 
       destinationWarehouse.availableCapacity -= dto.quantity;

@@ -8,6 +8,7 @@ import { Stock } from 'src/stocks/entities/stock.entity';
 import { Movement } from 'src/movements/entities/movement.entity';
 import { NotFoundException } from '@nestjs/common';
 import { ValidationFactory } from 'src/factories/validation.factory';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 jest.mock('src/factories/validation.factory');
 
@@ -18,11 +19,16 @@ describe('EntranceMovementStrategy', () => {
   let warehouseRepo: any;
   let stockRepo: any;
   let movementRepo: any;
+  let eventEmitter: jest.Mocked<EventEmitter2>;
 
   beforeEach(async () => {
     const mockResolver = {
       resolveWarehouseAndEmployee: jest.fn(),
     };
+
+   const mockEventEmitter = {
+     emitAsync: jest.fn(),
+   };
     
     skuRepo = { findOne: jest.fn(), save: jest.fn() };
     warehouseRepo = { findOne: jest.fn(), save: jest.fn() };
@@ -37,11 +43,13 @@ describe('EntranceMovementStrategy', () => {
         { provide: getRepositoryToken(Warehouse), useValue: warehouseRepo },
         { provide: getRepositoryToken(Stock), useValue: stockRepo },
         { provide: getRepositoryToken(Movement), useValue: movementRepo },
+        { provide: EventEmitter2, useValue: mockEventEmitter},
       ],
     }).compile();
 
     strategy = module.get<EntranceMovementStrategy>(EntranceMovementStrategy);
     resolver = module.get(MovementEntityResolverService);
+    eventEmitter = module.get(EventEmitter2);
   });
 
   afterEach(() => {
@@ -87,6 +95,7 @@ describe('EntranceMovementStrategy', () => {
     
     expect(movementRepo.create).toHaveBeenCalledWith(expect.objectContaining({ type: 'ENTRANCE', status: 'COMPLETED', totalCost: 100 }));
     expect(result).toEqual(newMovement);
+    expect(eventEmitter.emitAsync).toHaveBeenCalledWith('movement.created', expect.objectContaining({ id: 1 }));
   });
 
   it('increments existing stock quantity when stock already exists', async () => {
@@ -105,12 +114,13 @@ describe('EntranceMovementStrategy', () => {
     stockRepo.findOne.mockResolvedValue(existingStock);
     stockRepo.save.mockResolvedValue(existingStock);
     
-    movementRepo.create.mockReturnValue({});
-    movementRepo.save.mockResolvedValue({});
+    movementRepo.create.mockReturnValue({ id: 1, type: 'ENTRANCE', quantity: 5 });
+    movementRepo.save.mockResolvedValue(async (_entity: unknown, value: unknown) => value);
     
     await strategy.execute({ skuId: 'SKU-1', warehouseId: 1, employeeId: 2, quantity: 10 });
     
     expect(stockRepo.save).toHaveBeenCalledWith(expect.objectContaining({ quantity: 15 }));
+    expect(eventEmitter.emitAsync).toHaveBeenCalledWith('movement.created', expect.objectContaining({ id: 1 }));
   });
 
   it('Await-gap fix test: throws error if validator rejects asynchronously', async () => {
