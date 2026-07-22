@@ -1,17 +1,56 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { INestApplication, ValidationPipe, NotFoundException, NotImplementedException } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AnalyticsModule } from './analytics.module';
 import { JwtAuthGuard } from '../jwt/jwt.guard';
-import { RolesGuard } from '../jwt/roles/roles.guard';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Warehouse } from '../warehouses/entities/warehouse.entity';
+import { Product } from '../products/entities/product.entity';
+import { Sku } from '../skus/entities/skus.entity';
+import { ProductVariant } from '../product-variants/entities/product-variant.entity';
+import { Stock } from '../stocks/entities/stock.entity';
+import { Movement } from '../movements/entities/movement.entity';
+import { GlobalAnalyticsRepository } from './repositories/global-analytics.repository';
+import { WarehouseAnalyticsRepository } from './repositories/warehouse-analytics.repository';
 
 describe('AnalyticsModule (Integration)', () => {
   let app: INestApplication<App>;
   let mockWarehouseRepo = {
     findOne: jest.fn().mockResolvedValue({ id: 5, administrator: { id: 10 } })
+  };
+
+  const mockGlobalRepo = {
+    getRotationData: jest.fn().mockImplementation(async (id) => {
+      if(id === 999) throw new NotFoundException();
+      return { productId: id, rotationRate: 5.5, movements: 120, type: 'global' };
+    }),
+    getTopMovingData: jest.fn().mockImplementation(async (limit) => {
+      return Array.from({length: limit}, (_, i) => ({ productId: i+1, name: 'P', movementCount: 100, type: 'global' }));
+    }),
+    getCoverageData: jest.fn().mockImplementation(async (id) => {
+      if(id === 'SKU-INVALID') throw new NotFoundException();
+      return { skuId: id, stockQuantity: 1000, avgDailyConsumption: 50, type: 'global' };
+    }),
+    getNeedReorderData: jest.fn().mockResolvedValue([
+      { productVariantId: 1, name: 'V', currentStock: 5, reorderPoint: 10, type: 'global' }
+    ])
+  };
+
+  const mockWarehouseRepoService = {
+    setWarehouseId: jest.fn(),
+    getRotationData: jest.fn().mockImplementation(async (id) => {
+      if(id === 999) throw new NotFoundException();
+      return { productId: id, rotationRate: 3.2, movements: 45, type: 'warehouse', warehouseId: 5 };
+    }),
+    getTopMovingData: jest.fn().mockImplementation(async (limit) => {
+      return Array.from({length: limit}, (_, i) => ({ productId: i+1, name: 'P', movementCount: 100, type: 'warehouse', warehouseId: 5 }));
+    }),
+    getCoverageData: jest.fn().mockImplementation(async (id) => {
+      if(id === 'SKU-INVALID') throw new NotFoundException();
+      return { skuId: id, stockQuantity: 200, avgDailyConsumption: 10, type: 'warehouse', warehouseId: 5 };
+    }),
+    getNeedReorderData: jest.fn().mockRejectedValue(new NotImplementedException()),
   };
 
   beforeEach(async () => {
@@ -29,8 +68,14 @@ describe('AnalyticsModule (Integration)', () => {
         }
         return true; 
     } })
-    .overrideProvider(getRepositoryToken(Warehouse))
-    .useValue(mockWarehouseRepo)
+    .overrideProvider(getRepositoryToken(Warehouse)).useValue(mockWarehouseRepo)
+    .overrideProvider(getRepositoryToken(Product)).useValue({})
+    .overrideProvider(getRepositoryToken(Sku)).useValue({})
+    .overrideProvider(getRepositoryToken(ProductVariant)).useValue({})
+    .overrideProvider(getRepositoryToken(Stock)).useValue({})
+    .overrideProvider(getRepositoryToken(Movement)).useValue({})
+    .overrideProvider(GlobalAnalyticsRepository).useValue(mockGlobalRepo)
+    .overrideProvider(WarehouseAnalyticsRepository).useValue(mockWarehouseRepoService)
     .compile();
 
     app = moduleFixture.createNestApplication();

@@ -1,13 +1,50 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { GlobalAnalyticsRepository } from './global-analytics.repository';
 import { NotFoundException } from '@nestjs/common';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { Product } from '../../products/entities/product.entity';
+import { Sku } from '../../skus/entities/skus.entity';
+import { ProductVariant } from '../../product-variants/entities/product-variant.entity';
+import { Stock } from '../../stocks/entities/stock.entity';
+import { Movement } from '../../movements/entities/movement.entity';
 
 describe('GlobalAnalyticsRepository', () => {
   let repository: GlobalAnalyticsRepository;
 
+  const mockQueryBuilder = {
+    select: jest.fn().mockReturnThis(),
+    addSelect: jest.fn().mockReturnThis(),
+    leftJoin: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
+    groupBy: jest.fn().mockReturnThis(),
+    addGroupBy: jest.fn().mockReturnThis(),
+    orderBy: jest.fn().mockReturnThis(),
+    limit: jest.fn().mockReturnThis(),
+    having: jest.fn().mockReturnThis(),
+    getCount: jest.fn().mockResolvedValue(10),
+    getRawOne: jest.fn().mockResolvedValue({ sum: '100' }),
+    getRawMany: jest.fn().mockResolvedValue([]),
+  };
+
+  const mockProductRepo = { findOne: jest.fn().mockResolvedValue({ id: 1 }) };
+  const mockSkuRepo = { findOne: jest.fn().mockResolvedValue({ id: 'SKU-1' }) };
+  const mockVariantRepo = { createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder) };
+  const mockStockRepo = { createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder) };
+  const mockMovementRepo = { createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder) };
+
   beforeEach(async () => {
+    jest.clearAllMocks();
+    
     const module: TestingModule = await Test.createTestingModule({
-      providers: [GlobalAnalyticsRepository],
+      providers: [
+        GlobalAnalyticsRepository,
+        { provide: getRepositoryToken(Product), useValue: mockProductRepo },
+        { provide: getRepositoryToken(Sku), useValue: mockSkuRepo },
+        { provide: getRepositoryToken(ProductVariant), useValue: mockVariantRepo },
+        { provide: getRepositoryToken(Stock), useValue: mockStockRepo },
+        { provide: getRepositoryToken(Movement), useValue: mockMovementRepo },
+      ],
     }).compile();
 
     repository = module.get<GlobalAnalyticsRepository>(GlobalAnalyticsRepository);
@@ -17,37 +54,63 @@ describe('GlobalAnalyticsRepository', () => {
     expect(repository).toBeDefined();
   });
 
-  it('should return mock rotation data globally for valid product', async () => {
-    const data = await repository.getRotationData(10);
-    expect(data.productId).toBe(10);
-    expect(data.type).toBe('global');
+  describe('getRotationData', () => {
+    it('should return rotation data', async () => {
+      mockQueryBuilder.getRawOne.mockResolvedValueOnce({ sum: '50' }); // exitSum
+      mockQueryBuilder.getRawOne.mockResolvedValueOnce({ sum: '100' }); // stockSum
+
+      const data = await repository.getRotationData(10);
+      expect(data.productId).toBe(10);
+      expect(data.type).toBe('global');
+      expect(data.movements).toBe(10);
+      expect(data.rotationRate).toBe(0.5); // 50 / 100
+    });
+
+    it('should throw NotFoundException if product not found', async () => {
+      mockProductRepo.findOne.mockResolvedValueOnce(null);
+      await expect(repository.getRotationData(999)).rejects.toThrow(NotFoundException);
+    });
   });
 
-  it('should throw NotFoundException for invalid product in rotation data', async () => {
-    await expect(repository.getRotationData(999)).rejects.toThrow(NotFoundException);
+  describe('getTopMovingData', () => {
+    it('should return top moving data', async () => {
+      mockQueryBuilder.getRawMany.mockResolvedValueOnce([
+        { productId: 1, name: 'Prod A', movementCount: '50' }
+      ]);
+      const data = await repository.getTopMovingData(3);
+      expect(data.length).toBe(1);
+      expect(data[0].type).toBe('global');
+      expect(data[0].movementCount).toBe(50);
+    });
   });
 
-  it('should return mock top moving data globally limited by parameter', async () => {
-    const data = await repository.getTopMovingData(3);
-    expect(data.length).toBe(3);
-    expect(data[0].type).toBe('global');
+  describe('getCoverageData', () => {
+    it('should return coverage data', async () => {
+      mockQueryBuilder.getRawOne.mockResolvedValueOnce({ sum: '300' }); // stock quantity
+      mockQueryBuilder.getRawOne.mockResolvedValueOnce({ sum: '150' }); // exit sum 30 days
+      
+      const data = await repository.getCoverageData('SKU-123');
+      expect(data.skuId).toBe('SKU-123');
+      expect(data.stockQuantity).toBe(300);
+      expect(data.avgDailyConsumption).toBe(5); // 150 / 30
+      expect(data.type).toBe('global');
+    });
+
+    it('should throw NotFoundException if SKU not found', async () => {
+      mockSkuRepo.findOne.mockResolvedValueOnce(null);
+      await expect(repository.getCoverageData('INVALID-SKU')).rejects.toThrow(NotFoundException);
+    });
   });
 
-  it('should return mock coverage data globally for valid SKU', async () => {
-    const data = await repository.getCoverageData('SKU-123');
-    expect(data.skuId).toBe('SKU-123');
-    expect(data.type).toBe('global');
-  });
-
-  it('should throw NotFoundException for invalid SKU in coverage data', async () => {
-    await expect(repository.getCoverageData('INVALID-SKU')).rejects.toThrow(NotFoundException);
-  });
-
-  it('should return mock need reorder data globally', async () => {
-    const data = await repository.getNeedReorderData();
-    expect(data.length).toBeGreaterThan(0);
-    expect(data[0].type).toBe('global');
-    expect(data[0].reorderPoint).toBeDefined();
-    expect(data[0].currentStock).toBeDefined();
+  describe('getNeedReorderData', () => {
+    it('should return need reorder data', async () => {
+      mockQueryBuilder.getRawMany.mockResolvedValueOnce([
+        { productVariantId: 1, name: 'Var A', currentStock: '5', reorderPoint: 10 }
+      ]);
+      const data = await repository.getNeedReorderData();
+      expect(data.length).toBe(1);
+      expect(data[0].currentStock).toBe(5);
+      expect(data[0].reorderPoint).toBe(10);
+    });
   });
 });
