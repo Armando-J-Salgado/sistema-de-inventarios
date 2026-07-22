@@ -3,9 +3,9 @@ import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { Roles } from 'src/jwt/roles/roles.decorator';
-import { JwtAuthGuard } from 'src/jwt/jwt.guard';
-import { RolesGuard } from 'src/jwt/roles/roles.guard';
+import { Roles } from '../jwt/roles/roles.decorator';
+import { JwtAuthGuard } from '../jwt/jwt.guard';
+import { RolesGuard } from '../jwt/roles/roles.guard';
 
 @ApiTags('categories')
 @ApiBearerAuth()

@@ -18,7 +18,7 @@ export class Alert {
 
     @ApiProperty({example: '2026-07-19T19:17:00.00Z', description: 'Saves the time of creation'})
     @CreateDateColumn()
-    @Column({type: 'timestamp'})
+
     createdAt: Date;
 
     @ApiProperty({type: ()=>ProductVariant, description: 'Product Variant related to the alert'})

@@ -20,7 +20,17 @@ describe('AppController (e2e)', () => {
     return request(app.getHttpServer())
       .get('/')
       .expect(200)
-      .expect('Hello World!');
+      .expect((response) => {
+        expect(() => JSON.parse(response.text)).not.toThrow();
+
+        const payload = JSON.parse(response.text) as {
+          status: string;
+          timestamp: string;
+        };
+
+        expect(payload.status).toBe('ok');
+        expect(typeof payload.timestamp).toBe('string');
+      });
   });
 
   afterEach(async () => {

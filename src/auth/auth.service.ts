@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
-import { Employee } from 'src/employees/entities/employee.entity';
+import { Employee } from '../employees/entities/employee.entity';
 import { Repository } from 'typeorm';
 
 @Injectable()
@@ -14,8 +14,18 @@ export class AuthService {
   ) {}
 
   async validateEmployee(email: string, pass: string): Promise<Employee | null> {
-    const employee = await this.employeeRepo.findOne({ where: { email } });
-    if (employee && await bcrypt.compare(pass, employee.password)) {
+    const employee = await this.employeeRepo
+      .createQueryBuilder('employee')
+      .addSelect('employee.password')
+      .where('employee.email = :email', { email })
+      .getOne();
+
+    if (!employee || !employee.active) {
+      return null;
+    }
+
+    const passwordMatches = await bcrypt.compare(pass, employee.password);
+    if (passwordMatches) {
       return employee;
     }
     return null;

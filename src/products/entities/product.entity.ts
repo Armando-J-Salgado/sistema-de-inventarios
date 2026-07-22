@@ -24,17 +24,17 @@ export class Product {
 
     @ApiProperty({example: '2026-07-19T19:17:00.00Z', description: 'Saves the time of creation'})
     @CreateDateColumn()
-    @Column({type: 'timestamp'})
+
     createdAt: Date;
 
     @ApiProperty({example: '2026-07-19T19:17:00.00Z', description: 'Saves the time of the last update'})
     @UpdateDateColumn()
-    @Column({type: 'timestamp'})
+
     updatedAt: Date;
 
     @ApiProperty({example: '2026-07-19T19:17:00.00Z', description: 'Saves the time of deactivation'})
     @DeleteDateColumn()
-    @Column({type: 'timestamp'})
+
     deletedAt: Date;
 
     @ApiProperty({type: ()=>Category, description: 'Category of the product'})
