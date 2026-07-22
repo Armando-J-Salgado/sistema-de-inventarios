@@ -14,6 +14,5 @@ export class MovementListener {
   @OnEvent('movement.created')
   handleMovementCreated(movement: Movement) {
     this.analyticsService.calculateRotation(movement.id);
-    this.alertsService.findAll();
   }
 }
