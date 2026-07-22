@@ -42,4 +42,12 @@ describe('GlobalAnalyticsRepository', () => {
   it('should throw NotFoundException for invalid SKU in coverage data', async () => {
     await expect(repository.getCoverageData('INVALID-SKU')).rejects.toThrow(NotFoundException);
   });
+
+  it('should return mock need reorder data globally', async () => {
+    const data = await repository.getNeedReorderData();
+    expect(data.length).toBeGreaterThan(0);
+    expect(data[0].type).toBe('global');
+    expect(data[0].reorderPoint).toBeDefined();
+    expect(data[0].currentStock).toBeDefined();
+  });
 });

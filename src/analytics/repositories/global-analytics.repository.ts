@@ -34,4 +34,12 @@ export class GlobalAnalyticsRepository implements IAnalyticsRepository {
     // Mock global coverage query
     return { skuId, stockQuantity: 1000, avgDailyConsumption: 50, type: 'global' };
   }
+
+  async getNeedReorderData(): Promise<any[]> {
+    // Mock product variants that are below reorder point
+    return [
+      { productVariantId: 1, name: 'Variant A', currentStock: 5, reorderPoint: 10, type: 'global' },
+      { productVariantId: 4, name: 'Variant D', currentStock: 0, reorderPoint: 5, type: 'global' },
+    ];
+  }
 }

@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { WarehouseAnalyticsRepository } from './warehouse-analytics.repository';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, NotImplementedException } from '@nestjs/common';
 
 describe('WarehouseAnalyticsRepository', () => {
   let repository: WarehouseAnalyticsRepository;
@@ -53,5 +53,9 @@ describe('WarehouseAnalyticsRepository', () => {
   it('should throw NotFoundException for invalid SKU in coverage data', async () => {
     repository.setWarehouseId(5);
     await expect(repository.getCoverageData('INVALID-SKU')).rejects.toThrow(NotFoundException);
+  });
+
+  it('should throw NotImplementedException for getNeedReorderData', async () => {
+    await expect(repository.getNeedReorderData()).rejects.toThrow(NotImplementedException);
   });
 });

@@ -3,6 +3,7 @@ import { GlobalAnalyticsRepository } from '../repositories/global-analytics.repo
 import { RotationCalculator } from '../calculators/rotation.calculator';
 import { CoverageCalculator } from '../calculators/coverage.calculator';
 import { TopMovingCalculator } from '../calculators/top-moving.calculator';
+import { NeedReorderCalculator } from '../calculators/need-reorder.calculator';
 import { Roles } from '../../jwt/roles/roles.decorator';
 import { RolesGuard } from '../../jwt/roles/roles.guard';
 import { JwtAuthGuard } from '../../jwt/jwt.guard';
@@ -16,6 +17,7 @@ export class GlobalAnalyticsController {
     private readonly rotationCalculator: RotationCalculator,
     private readonly coverageCalculator: CoverageCalculator,
     private readonly topMovingCalculator: TopMovingCalculator,
+    private readonly needReorderCalculator: NeedReorderCalculator,
   ) {}
 
   @Get('rotation/:productId')
@@ -31,5 +33,10 @@ export class GlobalAnalyticsController {
   @Get('coverage/:skuId')
   getCoverage(@Param('skuId') skuId: string) {
     return this.coverageCalculator.calculate(skuId, this.globalAnalyticsRepository);
+  }
+
+  @Get('need-reorder')
+  getNeedReorder() {
+    return this.needReorderCalculator.calculate(this.globalAnalyticsRepository);
   }
 }

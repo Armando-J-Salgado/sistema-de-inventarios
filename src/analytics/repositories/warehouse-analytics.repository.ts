@@ -1,4 +1,4 @@
-import { Injectable, Scope, NotFoundException } from '@nestjs/common';
+import { Injectable, Scope, NotFoundException, NotImplementedException } from '@nestjs/common';
 import { IAnalyticsRepository } from './analytics-repository.interface';
 
 @Injectable({ scope: Scope.REQUEST })
@@ -45,5 +45,9 @@ export class WarehouseAnalyticsRepository implements IAnalyticsRepository {
     }
     // Mock coverage query filtered by warehouseId
     return { skuId, stockQuantity: 200, avgDailyConsumption: 10, type: 'warehouse', warehouseId: this.warehouseId };
+  }
+
+  async getNeedReorderData(): Promise<any[]> {
+    throw new NotImplementedException('This metric is globally exclusive');
   }
 }

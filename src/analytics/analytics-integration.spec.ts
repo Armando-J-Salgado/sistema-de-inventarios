@@ -21,12 +21,14 @@ describe('AnalyticsModule (Integration)', () => {
     .overrideGuard(JwtAuthGuard)
     .useValue({ canActivate: (context: any) => {
         const req = context.switchToHttp().getRequest();
-        // Default mock user for tests
-        if (!req.user) req.user = { employeeId: 10, roles: 'ADMINISTRATOR' };
+        const authHeader = req.headers['authorization'];
+        if (authHeader === 'Bearer MANAGER') {
+          req.user = { employeeId: 10, roles: 'WAREHOUSE_MANAGER' };
+        } else if (!req.user) {
+          req.user = { employeeId: 10, roles: 'ADMINISTRATOR' };
+        }
         return true; 
     } })
-    .overrideGuard(RolesGuard)
-    .useValue({ canActivate: () => true })
     .overrideProvider(getRepositoryToken(Warehouse))
     .useValue(mockWarehouseRepo)
     .compile();
@@ -92,6 +94,23 @@ describe('AnalyticsModule (Integration)', () => {
       return request(app.getHttpServer())
         .get('/analytics/coverage/SKU-INVALID')
         .expect(404);
+    });
+
+    it('/analytics/need-reorder (GET) - happy path (ADMINISTRATOR)', () => {
+      return request(app.getHttpServer())
+        .get('/analytics/need-reorder')
+        .expect(200)
+        .expect((res) => {
+          expect(Array.isArray(res.body)).toBe(true);
+          expect(res.body[0].needsReorder).toBe(true);
+        });
+    });
+
+    it('/analytics/need-reorder (GET) - sad path (WAREHOUSE_MANAGER 403)', () => {
+      return request(app.getHttpServer())
+        .get('/analytics/need-reorder')
+        .set('Authorization', 'Bearer MANAGER')
+        .expect(403);
     });
   });
 

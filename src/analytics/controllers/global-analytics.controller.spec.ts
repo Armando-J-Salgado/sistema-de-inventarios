@@ -4,6 +4,7 @@ import { GlobalAnalyticsRepository } from '../repositories/global-analytics.repo
 import { RotationCalculator } from '../calculators/rotation.calculator';
 import { CoverageCalculator } from '../calculators/coverage.calculator';
 import { TopMovingCalculator } from '../calculators/top-moving.calculator';
+import { NeedReorderCalculator } from '../calculators/need-reorder.calculator';
 
 describe('GlobalAnalyticsController', () => {
   let controller: GlobalAnalyticsController;
@@ -17,6 +18,9 @@ describe('GlobalAnalyticsController', () => {
   const mockTopMovingCalculator = {
     calculate: jest.fn().mockResolvedValue([{ productId: 1 }]),
   };
+  const mockNeedReorderCalculator = {
+    calculate: jest.fn().mockResolvedValue([{ productVariantId: 1, needsReorder: true }]),
+  };
   const mockGlobalRepository = {};
 
   beforeEach(async () => {
@@ -27,6 +31,7 @@ describe('GlobalAnalyticsController', () => {
         { provide: RotationCalculator, useValue: mockRotationCalculator },
         { provide: CoverageCalculator, useValue: mockCoverageCalculator },
         { provide: TopMovingCalculator, useValue: mockTopMovingCalculator },
+        { provide: NeedReorderCalculator, useValue: mockNeedReorderCalculator },
       ],
     }).compile();
 
@@ -50,5 +55,10 @@ describe('GlobalAnalyticsController', () => {
   it('should call coverageCalculator with global repository', async () => {
     await controller.getCoverage('SKU-1');
     expect(mockCoverageCalculator.calculate).toHaveBeenCalledWith('SKU-1', mockGlobalRepository);
+  });
+
+  it('should call needReorderCalculator with global repository', async () => {
+    await controller.getNeedReorder();
+    expect(mockNeedReorderCalculator.calculate).toHaveBeenCalledWith(mockGlobalRepository);
   });
 });
