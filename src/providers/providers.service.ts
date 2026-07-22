@@ -14,7 +14,7 @@ export class ProvidersService {
       active: true,
       createdAt: new Date(),
       updatedAt: new Date(),
-      deletedAt: null,
+      deletedAt: null as any,
       products: [],
       lots: []
     }
@@ -28,7 +28,7 @@ export class ProvidersService {
       active: true,
       createdAt: new Date(),
       updatedAt: new Date(),
-      deletedAt: null,
+      deletedAt: null as any,
       products: [],
       lots: []
     };
