@@ -1,0 +1,1649 @@
+{
+  "info": {
+    "name": "Sistema Inventarios Multi-Bodega",
+    "description": "Flujo de negocio completo de la API multi-bodega: autenticacion y RBAC por rol, CRUD de bodegas, catalogo, entradas que descuentan el SKU, disponible vs fisico (reservas), despacho FEFO, despacho desde reservacion, transferencias entre bodegas con IN_TRANSIT/ACCEPT/REJECT y reversion, conciliacion del historial de movimientos y analytics de reorden/rotacion/top-moving.\n\nPrerequisito: `npm run seed -- --fresh` con la API corriendo (`npm run start:dev`) ANTES de correr esta coleccion. Disenada para correrse completa, en orden, con Collection Runner o Newman:\n\n```\nnpx newman run postman/sistema-inventarios.postman_collection.json -e postman/local.postman_environment.json\n```\n\nDiscrepancias conocidas entre el plan original y el comportamiento real del codigo (verificadas leyendo el codigo fuente, ver README.md > Colección Postman > Discrepancias):\n\n1. `POST /products` y `POST /providers` son stubs en memoria (`ProductsService`/`ProvidersService` usan arrays privados, no TypeORM) desconectados de las tablas reales que `ProductVariantsService`/`LotsService` sí usan vía TypeORM. La coleccion los invoca para demostrar el endpoint publico, pero para encadenar IDs reales reutiliza el producto/proveedor sembrados por el seeder (id 1 tras `--fresh`, unicas filas insertadas antes de correr la coleccion).\n2. `GET /stocks` y `GET /stocks/:id` no cargan relaciones (`sku`/`warehouse` ausentes en la respuesta), asi que no sirven para 'buscar' un stock por SKU/bodega. La coleccion obtiene los IDs de stock directamente de las respuestas de movimientos (que si traen `sourceStock`/`destinationStock` completos).\n3. Varias respuestas de Swagger documentan codigos que el runtime no produce (ningun controller usa `@HttpCode`): los `POST` de movements que la documentacion marca como 200 en realidad devuelven 201 (default de Nest), y los `DELETE` documentados como 203 devuelven 200. La coleccion asume el comportamiento real.\n4. `/analytics/need-reorder` compara el stock fisico total contra `reorderPoint` con `<` estricto (no `<=`). Para que la variante demo (reorderPoint 5) aparezca ahi se ajusto la cantidad emitida en la seccion 05 para que el fisico total quede en 4, no en 5 (el umbral de alertas de `/alerts` sí usa `<=` y dispara igual en 5).\n5. Sección 06 paso 'segunda transfer' usa la variante Clasico (no la demo, que quedó en 0 físico tras el primer transfer completo) y el paso de transfer-from-reservation opera sobre el stock demo que quedó en Bodega Norte, devolviéndolo a Central (el plan original decía 'transferirla a Norte', imposible si el stock ya está en Norte).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "00 - Auth y descubrimiento",
+      "item": [
+        {
+          "name": "Login admin",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}" },
+            "description": "Login del administrador. Guarda adminToken para el resto de la coleccion (auth por defecto a nivel de coleccion)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.test('access_token presente', () => pm.expect(json.access_token).to.be.a('string').and.not.empty);",
+                  "pm.environment.set('adminToken', json.access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login manager central",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{managerCentralEmail}}\",\n  \"password\": \"{{managerCentralPassword}}\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.test('access_token presente', () => pm.expect(json.access_token).to.be.a('string').and.not.empty);",
+                  "pm.environment.set('managerCentralToken', json.access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login manager norte",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{managerNorteEmail}}\",\n  \"password\": \"{{managerNortePassword}}\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.test('access_token presente', () => pm.expect(json.access_token).to.be.a('string').and.not.empty);",
+                  "pm.environment.set('managerNorteToken', json.access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login analyst",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{analystEmail}}\",\n  \"password\": \"{{analystPassword}}\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.test('access_token presente', () => pm.expect(json.access_token).to.be.a('string').and.not.empty);",
+                  "pm.environment.set('analystToken', json.access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login credenciales malas (negativo)",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"password-incorrecta\"\n}" },
+            "description": "Password incorrecta para un email valido -> 401."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 401', () => pm.response.to.have.status(401));",
+                  "const json = pm.response.json();",
+                  "pm.test('mensaje de credenciales invalidas', () => pm.expect(JSON.stringify(json.message)).to.include('Invalid credentials'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Descubrir empleados (IDs)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "url": { "raw": "{{baseUrl}}/employees", "host": ["{{baseUrl}}"], "path": ["employees"] },
+            "description": "Resuelve los employeeId de admin/manager central/manager norte/analyst buscando por email en vez de hardcodear IDs del seed."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const employees = pm.response.json();",
+                  "pm.test('al menos 4 empleados del seed', () => pm.expect(employees.length).to.be.at.least(4));",
+                  "const byEmail = (email) => employees.find((e) => e.email === email);",
+                  "const admin = byEmail(pm.environment.get('adminEmail'));",
+                  "const mCentral = byEmail(pm.environment.get('managerCentralEmail'));",
+                  "const mNorte = byEmail(pm.environment.get('managerNorteEmail'));",
+                  "const analyst = byEmail(pm.environment.get('analystEmail'));",
+                  "pm.test('los 4 empleados del seed existen', () => {",
+                  "  pm.expect(admin, 'admin').to.exist;",
+                  "  pm.expect(mCentral, 'manager central').to.exist;",
+                  "  pm.expect(mNorte, 'manager norte').to.exist;",
+                  "  pm.expect(analyst, 'analyst').to.exist;",
+                  "});",
+                  "pm.environment.set('adminEmployeeId', admin.id);",
+                  "pm.environment.set('managerCentralEmployeeId', mCentral.id);",
+                  "pm.environment.set('managerNorteEmployeeId', mNorte.id);",
+                  "pm.environment.set('analystEmployeeId', analyst.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Descubrir bodegas (IDs y capacidad Norte)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "url": { "raw": "{{baseUrl}}/warehouses", "host": ["{{baseUrl}}"], "path": ["warehouses"] },
+            "description": "Resuelve centralWarehouseId/norteWarehouseId por nombre. Tambien captura la availableCapacity de Norte tal como la deja el seed, para calcular dinamicamente una cantidad que exceda su capacidad en la seccion 03."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const warehouses = pm.response.json();",
+                  "const central = warehouses.find((w) => w.name === 'Bodega Central');",
+                  "const norte = warehouses.find((w) => w.name === 'Bodega Norte');",
+                  "pm.test('Bodega Central y Bodega Norte existen', () => {",
+                  "  pm.expect(central, 'Bodega Central').to.exist;",
+                  "  pm.expect(norte, 'Bodega Norte').to.exist;",
+                  "});",
+                  "pm.environment.set('centralWarehouseId', central.id);",
+                  "pm.environment.set('norteWarehouseId', norte.id);",
+                  "pm.environment.set('norteAvailableCapacitySeed', norte.availableCapacity);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Descubrir variantes (Clasico y Descafeinado)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "url": { "raw": "{{baseUrl}}/product-variants", "host": ["{{baseUrl}}"], "path": ["product-variants"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const variants = pm.response.json();",
+                  "const clasico = variants.find((v) => v.name === 'Cafe Molido Clasico');",
+                  "const descafeinado = variants.find((v) => v.name === 'Cafe Molido Descafeinado');",
+                  "pm.test('variantes del seed existen', () => {",
+                  "  pm.expect(clasico, 'Cafe Molido Clasico').to.exist;",
+                  "  pm.expect(descafeinado, 'Cafe Molido Descafeinado').to.exist;",
+                  "});",
+                  "pm.environment.set('clasicoVariantId', clasico.id);",
+                  "pm.environment.set('descafeinadoVariantId', descafeinado.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Descubrir transferencia pendiente del seed",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "url": {
+              "raw": "{{baseUrl}}/movements?status=IN_TRANSIT",
+              "host": ["{{baseUrl}}"],
+              "path": ["movements"],
+              "query": [{ "key": "status", "value": "IN_TRANSIT" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const movements = pm.response.json();",
+                  "pm.test('hay al menos una transferencia IN_TRANSIT del seed', () => pm.expect(movements.length).to.be.at.least(1));",
+                  "pm.test('todas son IN_TRANSIT', () => movements.forEach((m) => pm.expect(m.status).to.eql('IN_TRANSIT')));",
+                  "pm.environment.set('pendingTransferGroupId', movements[0].transferGroupId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Descubrir reserva ACTIVE del seed",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "url": { "raw": "{{baseUrl}}/reservations", "host": ["{{baseUrl}}"], "path": ["reservations"] },
+            "description": "GET /reservations con rol admin trae la relacion 'stock' (solo columnas propias, sin sub-relaciones), suficiente para leer stock.id."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const reservations = pm.response.json();",
+                  "const active = reservations.find((r) => r.status === 'ACTIVE');",
+                  "pm.test('existe una reserva ACTIVE del seed', () => pm.expect(active).to.exist);",
+                  "pm.environment.set('reservationId', active.id);",
+                  "pm.environment.set('stockIdL2Central', active.stock.id);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "01 - Bodegas (CRUD)",
+      "item": [
+        {
+          "name": "Crear bodega demo",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/warehouses", "host": ["{{baseUrl}}"], "path": ["warehouses"] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Bodega Demo {{$timestamp}}\",\n  \"maximumCapacity\": 50\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.test('availableCapacity == maximumCapacity', () => pm.expect(json.availableCapacity).to.eql(json.maximumCapacity));",
+                  "pm.environment.set('demoWarehouseId', json.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listar bodegas (contiene demo)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "url": { "raw": "{{baseUrl}}/warehouses", "host": ["{{baseUrl}}"], "path": ["warehouses"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const warehouses = pm.response.json();",
+                  "const demoId = parseInt(pm.environment.get('demoWarehouseId'));",
+                  "pm.test('la bodega demo esta en el listado', () => pm.expect(warehouses.some((w) => w.id === demoId)).to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ver bodega demo (administrator null, stocks)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "url": { "raw": "{{baseUrl}}/warehouses/{{demoWarehouseId}}", "host": ["{{baseUrl}}"], "path": ["warehouses", "{{demoWarehouseId}}"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('trae administrator (null, no se asigno)', () => {",
+                  "  pm.expect(json).to.have.property('administrator');",
+                  "  pm.expect(json.administrator).to.be.null;",
+                  "});",
+                  "pm.test('trae stocks (vacio)', () => {",
+                  "  pm.expect(json).to.have.property('stocks');",
+                  "  pm.expect(json.stocks).to.be.an('array').that.is.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Subir capacidad de bodega demo (+30)",
+          "request": {
+            "method": "PATCH",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/warehouses/{{demoWarehouseId}}", "host": ["{{baseUrl}}"], "path": ["warehouses", "{{demoWarehouseId}}"] },
+            "body": { "mode": "raw", "raw": "{\n  \"maximumCapacity\": 80\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('availableCapacity subio en 30 (50 -> 80)', () => pm.expect(json.availableCapacity).to.eql(80));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Negativo: crear bodega con rol analyst",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{analystToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/warehouses", "host": ["{{baseUrl}}"], "path": ["warehouses"] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Bodega Analyst {{$timestamp}}\",\n  \"maximumCapacity\": 10\n}" }
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('status 403', () => pm.response.to.have.status(403));"] } }
+          ]
+        },
+        {
+          "name": "Negativo: crear bodega con nombre duplicado",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/warehouses", "host": ["{{baseUrl}}"], "path": ["warehouses"] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Bodega Central\",\n  \"maximumCapacity\": 10\n}" },
+            "description": "Bodega Central ya existe desde el seed -> 409."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 409', () => pm.response.to.have.status(409));",
+                  "const json = pm.response.json();",
+                  "pm.test('mensaje de nombre duplicado', () => pm.expect(JSON.stringify(json.message)).to.include('already exists'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Negativo: bajar capacidad de Norte a 0 con stock ocupado",
+          "request": {
+            "method": "PATCH",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/warehouses/{{norteWarehouseId}}", "host": ["{{baseUrl}}"], "path": ["warehouses", "{{norteWarehouseId}}"] },
+            "body": { "mode": "raw", "raw": "{\n  \"maximumCapacity\": 0\n}" },
+            "description": "Bodega Norte ya tiene stock desde el seed (no la demo, que nunca recibe entradas), asi que bajar su capacidad a 0 deja availableCapacity negativo -> 400."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));",
+                  "const json = pm.response.json();",
+                  "pm.test('mensaje de capacidad insuficiente', () => pm.expect(JSON.stringify(json.message)).to.include('cannot be lower than the stock currently on hand'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Borrar bodega demo (soft delete)",
+          "request": {
+            "method": "DELETE",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "url": { "raw": "{{baseUrl}}/warehouses/{{demoWarehouseId}}", "host": ["{{baseUrl}}"], "path": ["warehouses", "{{demoWarehouseId}}"] },
+            "description": "El runtime real devuelve 200 (no hay @HttpCode(203) en el controller pese a lo documentado en Swagger)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('active == false', () => pm.expect(json.active).to.eql(false));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listar bodegas inactivas (contiene demo)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "url": {
+              "raw": "{{baseUrl}}/warehouses?active=false",
+              "host": ["{{baseUrl}}"],
+              "path": ["warehouses"],
+              "query": [{ "key": "active", "value": "false" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const warehouses = pm.response.json();",
+                  "const demoId = parseInt(pm.environment.get('demoWarehouseId'));",
+                  "pm.test('la bodega demo esta entre las inactivas', () => pm.expect(warehouses.some((w) => w.id === demoId)).to.be.true);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 - Catalogo demo",
+      "item": [
+        {
+          "name": "Crear categoria demo",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/categories", "host": ["{{baseUrl}}"], "path": ["categories"] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Categoria Demo {{$timestamp}}\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.environment.set('demoCategoryId', json.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear proveedor demo (endpoint publico, stub en memoria)",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/providers", "host": ["{{baseUrl}}"], "path": ["providers"] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Proveedor Demo Postman\",\n  \"address\": \"Calle Demo 123, San Salvador\",\n  \"email\": \"proveedor.demo.{{$timestamp}}@example.com\"\n}" },
+            "description": "Endpoint publico (sin guard). ProvidersService guarda en un arreglo en memoria, NO en la tabla real 'provider' que LotsService consulta via TypeORM -- ver discrepancia #1 en la descripcion de la coleccion. Se llama para cubrir el endpoint del rubro, pero demoProviderId termina apuntando al proveedor real del seed (id 1 tras --fresh) para poder crear el lote demo."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.test('el stub devuelve un id', () => pm.expect(json.id).to.exist);",
+                  "// Conocido: este proveedor NO existe en la tabla real. Se reutiliza el proveedor",
+                  "// sembrado por el seeder (unico insertado antes de esta corrida con --fresh).",
+                  "pm.environment.set('demoProviderId', 1);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear producto demo (endpoint publico, stub en memoria)",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/products", "host": ["{{baseUrl}}"], "path": ["products"] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Producto Demo Postman\",\n  \"categoryId\": {{demoCategoryId}},\n  \"providerId\": {{demoProviderId}},\n  \"unitOfMeasurement\": \"bolsa 500g\"\n}" },
+            "description": "Endpoint publico. ProductsService tambien es un stub en memoria (misma discrepancia #1): no persiste en la tabla real 'product' que ProductVariantsService referencia via TypeORM (FK real). Se reutiliza el producto sembrado por el seeder (id 1 tras --fresh, 'Cafe Molido') para la variante demo."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.test('el stub devuelve un id', () => pm.expect(json.id).to.exist);",
+                  "pm.environment.set('demoProductId', 1);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear variante demo (reorderPoint 5)",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/product-variants", "host": ["{{baseUrl}}"], "path": ["product-variants"] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Cafe Molido Demo Postman\",\n  \"description\": \"Variante demo creada por la coleccion Postman para pruebas de negocio\",\n  \"reorderPoint\": 5,\n  \"productId\": {{demoProductId}}\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.environment.set('demoVariantId', json.id);",
+                  "pm.environment.set('demoVariantName', json.name);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear lote demo (RECEIVED)",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/lots", "host": ["{{baseUrl}}"], "path": ["lots"] },
+            "body": { "mode": "raw", "raw": "{\n  \"providerId\": {{demoProviderId}},\n  \"dateOfEntry\": \"{{$isoTimestamp}}\",\n  \"state\": \"RECEIVED\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.test('estado RECEIVED', () => pm.expect(json.state).to.eql('RECEIVED'));",
+                  "pm.environment.set('demoLotId', json.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear SKU demo (quantity 100)",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/skus", "host": ["{{baseUrl}}"], "path": ["skus"] },
+            "body": { "mode": "raw", "raw": "{\n  \"id\": \"DEMO-{{$timestamp}}\",\n  \"productVariantId\": {{demoVariantId}},\n  \"lotId\": {{demoLotId}},\n  \"dateOfEntry\": \"{{$isoTimestamp}}\",\n  \"quantity\": 100,\n  \"unitCost\": 9.99,\n  \"bestBeforeDate\": \"{{demoBestBeforeDate}}\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const bestBefore = new Date(Date.now() + 45 * 24 * 60 * 60 * 1000).toISOString();",
+                  "pm.variables.set('demoBestBeforeDate', bestBefore);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.test('quantity 100', () => pm.expect(json.quantity).to.eql(100));",
+                  "pm.environment.set('demoSkuId', json.id);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 - Entradas",
+      "item": [
+        {
+          "name": "GET SKU demo (capturar quantity antes)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "url": { "raw": "{{baseUrl}}/skus/{{demoSkuId}}", "host": ["{{baseUrl}}"], "path": ["skus", "{{demoSkuId}}"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('quantity 100', () => pm.expect(json.quantity).to.eql(100));",
+                  "pm.environment.set('skuQtyBefore', json.quantity);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Entrada de 40 unidades a Bodega Central",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{managerCentralToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/movements/entry", "host": ["{{baseUrl}}"], "path": ["movements", "entry"] },
+            "body": { "mode": "raw", "raw": "{\n  \"quantity\": 40,\n  \"skuId\": \"{{demoSkuId}}\",\n  \"warehouseId\": {{centralWarehouseId}},\n  \"employeeId\": {{managerCentralEmployeeId}}\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.test('movement COMPLETED', () => pm.expect(json.status).to.eql('COMPLETED'));",
+                  "pm.test('totalCost == 40 * 9.99', () => pm.expect(json.totalCost).to.be.closeTo(40 * 9.99, 0.001));",
+                  "pm.environment.set('demoStockId', json.sourceStock.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET SKU demo (quantity descontada por la entrada)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "url": { "raw": "{{baseUrl}}/skus/{{demoSkuId}}", "host": ["{{baseUrl}}"], "path": ["skus", "{{demoSkuId}}"] },
+            "description": "La entrada resta del SKU (regla del spec): quantity == skuQtyBefore - 40."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "const before = parseInt(pm.environment.get('skuQtyBefore'));",
+                  "pm.test('quantity == before - 40', () => pm.expect(json.quantity).to.eql(before - 40));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET stock demo en Central (quantity 40)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "url": { "raw": "{{baseUrl}}/stocks/{{demoStockId}}", "host": ["{{baseUrl}}"], "path": ["stocks", "{{demoStockId}}"] },
+            "description": "GET /stocks/:id no carga relaciones (sku/warehouse ausentes) -- ver discrepancia #2. demoStockId ya se capturo directamente de la respuesta del movimiento de entrada; aqui solo se verifica la quantity."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('quantity 40', () => pm.expect(json.quantity).to.eql(40));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Negativo: entrada de SKU con lote PENDING",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{managerCentralToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/movements/entry", "host": ["{{baseUrl}}"], "path": ["movements", "entry"] },
+            "body": { "mode": "raw", "raw": "{\n  \"quantity\": 5,\n  \"skuId\": \"CAFE-CLA-L3\",\n  \"warehouseId\": {{centralWarehouseId}},\n  \"employeeId\": {{managerCentralEmployeeId}}\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));",
+                  "const json = pm.response.json();",
+                  "pm.test('mensaje de lote no disponible', () => pm.expect(JSON.stringify(json.message)).to.include('not available at the moment'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Negativo: entrada excede capacidad de Bodega Norte",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/movements/entry", "host": ["{{baseUrl}}"], "path": ["movements", "entry"] },
+            "body": { "mode": "raw", "raw": "{\n  \"quantity\": {{overCapacityQty}},\n  \"skuId\": \"{{demoSkuId}}\",\n  \"warehouseId\": {{norteWarehouseId}},\n  \"employeeId\": {{adminEmployeeId}}\n}" },
+            "description": "Cantidad calculada dinamicamente (capacidad disponible de Norte capturada en 00 + 1) para garantizar que exceda la capacidad sin exceder el remanente del SKU demo (que en este punto es 60, ya se entregaron 40 de 100). Se usa el token admin para saltar el chequeo de permiso (que corre antes que el de capacidad) y aislar el error de capacidad."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const capacity = parseInt(pm.environment.get('norteAvailableCapacitySeed'));",
+                  "pm.environment.set('overCapacityQty', capacity + 1);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));",
+                  "const json = pm.response.json();",
+                  "const qty = pm.environment.get('overCapacityQty');",
+                  "const capacity = pm.environment.get('norteAvailableCapacitySeed');",
+                  "const expected = `There is not enough capacity in the warehouse. Needs ${qty} spaces, only ${capacity} spaces remaining`;",
+                  "pm.test('mensaje de capacidad insuficiente', () => pm.expect(JSON.stringify(json.message)).to.include(expected));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Negativo: entrada a Central con employeeId de manager norte",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{managerNorteToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/movements/entry", "host": ["{{baseUrl}}"], "path": ["movements", "entry"] },
+            "body": { "mode": "raw", "raw": "{\n  \"quantity\": 1,\n  \"skuId\": \"{{demoSkuId}}\",\n  \"warehouseId\": {{centralWarehouseId}},\n  \"employeeId\": {{managerNorteEmployeeId}}\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 403', () => pm.response.to.have.status(403));",
+                  "const json = pm.response.json();",
+                  "const centralId = pm.environment.get('centralWarehouseId');",
+                  "pm.test('mensaje de permiso', () => pm.expect(JSON.stringify(json.message)).to.include(`is not allowed to manage warehouse #${centralId}`));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 - Reservas y stock disponible",
+      "item": [
+        {
+          "name": "GET disponible del stock demo (40)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "url": { "raw": "{{baseUrl}}/stocks/{{demoStockId}}/available", "host": ["{{baseUrl}}"], "path": ["stocks", "{{demoStockId}}", "available"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const available = pm.response.json();",
+                  "pm.test('disponible == 40 (sin reservas)', () => pm.expect(available).to.eql(40));",
+                  "pm.environment.set('availableBefore', available);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear reserva de 15 sobre stock demo",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/reservations", "host": ["{{baseUrl}}"], "path": ["reservations"] },
+            "body": { "mode": "raw", "raw": "{\n  \"sourceStockId\": {{demoStockId}},\n  \"quantity\": 15,\n  \"fromDate\": \"{{$isoTimestamp}}\",\n  \"toDate\": \"{{reservationToDate}}\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const toDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();",
+                  "pm.variables.set('reservationToDate', toDate);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.test('status ACTIVE', () => pm.expect(json.status).to.eql('ACTIVE'));",
+                  "pm.environment.set('demoReservationId', json.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET disponible del stock demo (25 tras reservar)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "url": { "raw": "{{baseUrl}}/stocks/{{demoStockId}}/available", "host": ["{{baseUrl}}"], "path": ["stocks", "{{demoStockId}}", "available"] },
+            "description": "El disponible baja exactamente lo reservado; el fisico sigue en 40 (verificable con GET /stocks/:id)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const available = pm.response.json();",
+                  "pm.test('disponible == 25', () => pm.expect(available).to.eql(25));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Negativo: reservar 26 mas (excede disponible)",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/reservations", "host": ["{{baseUrl}}"], "path": ["reservations"] },
+            "body": { "mode": "raw", "raw": "{\n  \"sourceStockId\": {{demoStockId}},\n  \"quantity\": 26,\n  \"fromDate\": \"{{$isoTimestamp}}\",\n  \"toDate\": \"{{reservationToDate}}\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const toDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();",
+                  "pm.variables.set('reservationToDate', toDate);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));",
+                  "const json = pm.response.json();",
+                  "pm.test('mensaje de stock insuficiente', () => pm.expect(JSON.stringify(json.message)).to.include('Insufficient stock. Requested: 26, Available: 25'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Negativo: manager norte reserva sobre stock de Central",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{managerNorteToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/reservations", "host": ["{{baseUrl}}"], "path": ["reservations"] },
+            "body": { "mode": "raw", "raw": "{\n  \"sourceStockId\": {{demoStockId}},\n  \"quantity\": 1,\n  \"fromDate\": \"{{$isoTimestamp}}\",\n  \"toDate\": \"{{reservationToDate}}\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const toDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();",
+                  "pm.variables.set('reservationToDate', toDate);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 403', () => pm.response.to.have.status(403));",
+                  "const json = pm.response.json();",
+                  "pm.test('mensaje de bodega ajena', () => pm.expect(JSON.stringify(json.message)).to.include('You can only create reservations for your assigned warehouse'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Negativo: analyst crea reserva",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{analystToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/reservations", "host": ["{{baseUrl}}"], "path": ["reservations"] },
+            "body": { "mode": "raw", "raw": "{\n  \"sourceStockId\": {{demoStockId}},\n  \"quantity\": 1,\n  \"fromDate\": \"{{$isoTimestamp}}\",\n  \"toDate\": \"{{reservationToDate}}\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const toDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();",
+                  "pm.variables.set('reservationToDate', toDate);"
+                ]
+              }
+            },
+            { "listen": "test", "script": { "exec": ["pm.test('status 403', () => pm.response.to.have.status(403));"] } }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 - Despacho (issue)",
+      "item": [
+        {
+          "name": "Negativo: issue 30 (fisico alcanza, reservas lo impiden)",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{managerCentralToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/movements/issue", "host": ["{{baseUrl}}"], "path": ["movements", "issue"] },
+            "body": { "mode": "raw", "raw": "{\n  \"quantity\": 30,\n  \"productVariantId\": {{demoVariantId}},\n  \"warehouseId\": {{centralWarehouseId}},\n  \"employeeId\": {{managerCentralEmployeeId}}\n}" },
+            "description": "El fisico (40) alcanzaria para despachar 30, pero el disponible es 25 (40 - 15 reservados): la asignacion FEFO respeta las reservas activas y falla por 5 unidades."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));",
+                  "const json = pm.response.json();",
+                  "const variantId = pm.environment.get('demoVariantId');",
+                  "pm.test('mensaje de stock insuficiente por variante', () => pm.expect(JSON.stringify(json.message)).to.include(`Insufficient stock for product variant ${variantId}: missing 5 units`));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Issue de 21 unidades (stock demo -> 19, disponible 4)",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{managerCentralToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/movements/issue", "host": ["{{baseUrl}}"], "path": ["movements", "issue"] },
+            "body": { "mode": "raw", "raw": "{\n  \"quantity\": 21,\n  \"productVariantId\": {{demoVariantId}},\n  \"warehouseId\": {{centralWarehouseId}},\n  \"employeeId\": {{managerCentralEmployeeId}}\n}" },
+            "description": "Cantidad ajustada de 20 (plan original) a 21: /analytics/need-reorder usa '<' estricto contra reorderPoint (5), asi que el fisico total de la variante demo debe terminar en 4 (no 5) para que la seccion 07 la detecte. Ver discrepancia #4."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "const movements = pm.response.json();",
+                  "pm.test('respuesta es un arreglo', () => pm.expect(movements).to.be.an('array'));",
+                  "const sum = movements.reduce((s, m) => s + m.quantity, 0);",
+                  "pm.test('suma de quantities == 21', () => pm.expect(sum).to.eql(21));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "FEFO multi-SKU: issue de 8 de la variante Clasico",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{managerCentralToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/movements/issue", "host": ["{{baseUrl}}"], "path": ["movements", "issue"] },
+            "body": { "mode": "raw", "raw": "{\n  \"quantity\": 8,\n  \"productVariantId\": {{clasicoVariantId}},\n  \"warehouseId\": {{centralWarehouseId}},\n  \"employeeId\": {{managerCentralEmployeeId}}\n}" },
+            "description": "El seed deja L1=5 y L2=30 (10 reservadas) para la variante Clasico en Central. Un issue de 8 cruza de L1 a L2 por orden de bestBeforeDate (FEFO): 5 de L1 + 3 de L2 -> 2 movements."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "const movements = pm.response.json();",
+                  "pm.test('mas de un movimiento (cruzo de SKU)', () => pm.expect(movements.length).to.be.above(1));",
+                  "const sum = movements.reduce((s, m) => s + m.quantity, 0);",
+                  "pm.test('suma de quantities == 8', () => pm.expect(sum).to.eql(8));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Issue desde reservacion (demoReservationId)",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{managerCentralToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/movements/issue-from-reservation", "host": ["{{baseUrl}}"], "path": ["movements", "issue-from-reservation"] },
+            "body": { "mode": "raw", "raw": "{\n  \"employeeId\": {{managerCentralEmployeeId}},\n  \"reservationId\": {{demoReservationId}}\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.test('movement COMPLETED de 15 unidades', () => {",
+                  "  pm.expect(json.status).to.eql('COMPLETED');",
+                  "  pm.expect(json.quantity).to.eql(15);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET reserva demo -> COMPLETED",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "url": { "raw": "{{baseUrl}}/reservations/{{demoReservationId}}", "host": ["{{baseUrl}}"], "path": ["reservations", "{{demoReservationId}}"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('status COMPLETED', () => pm.expect(json.status).to.eql('COMPLETED'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET alertas (contiene la variante demo)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "url": { "raw": "{{baseUrl}}/alerts", "host": ["{{baseUrl}}"], "path": ["alerts"] },
+            "description": "AlertsService.findAll() no carga la relacion productVariant, asi que se matchea por titulo ('Low stock of <nombre variante>') en vez de por id."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const alerts = pm.response.json();",
+                  "const variantName = pm.environment.get('demoVariantName');",
+                  "pm.test('existe alerta de la variante demo', () => pm.expect(alerts.some((a) => a.title.includes(variantName))).to.be.true);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "06 - Transferencias entre bodegas",
+      "item": [
+        {
+          "name": "Transfer de 4 (variante demo) Central -> Norte",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{managerCentralToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/movements/transfer", "host": ["{{baseUrl}}"], "path": ["movements", "transfer"] },
+            "body": { "mode": "raw", "raw": "{\n  \"quantity\": 4,\n  \"productVariantId\": {{demoVariantId}},\n  \"originWarehouseId\": {{centralWarehouseId}},\n  \"destinationWarehouseId\": {{norteWarehouseId}},\n  \"employeeId\": {{managerCentralEmployeeId}}\n}" },
+            "description": "Cantidad ajustada a 4 (todo el fisico restante de la variante demo en Central tras la seccion 05) para mantener el inventario en transito real."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "const movements = pm.response.json();",
+                  "pm.test('todos IN_TRANSIT', () => movements.forEach((m) => pm.expect(m.status).to.eql('IN_TRANSIT')));",
+                  "pm.test('transferGroupId presente', () => pm.expect(movements[0].transferGroupId).to.be.a('string').and.not.empty);",
+                  "pm.test('stock origen descontado a 0', () => pm.expect(movements[0].sourceStock.quantity).to.eql(0));",
+                  "pm.test('stock destino aun 0 (recien creado)', () => pm.expect(movements[0].destinationStock.quantity).to.eql(0));",
+                  "pm.environment.set('transferGroupId', movements[0].transferGroupId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET movimientos del grupo de transferencia",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "url": {
+              "raw": "{{baseUrl}}/movements?transferGroupId={{transferGroupId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["movements"],
+              "query": [{ "key": "transferGroupId", "value": "{{transferGroupId}}" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const movements = pm.response.json();",
+                  "const groupId = pm.environment.get('transferGroupId');",
+                  "pm.test('todos pertenecen al grupo', () => {",
+                  "  pm.expect(movements.length).to.be.at.least(1);",
+                  "  movements.forEach((m) => pm.expect(m.transferGroupId).to.eql(groupId));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Negativo: receive-transfer con manager central (no es del destino)",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{managerCentralToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/movements/receive-transfer", "host": ["{{baseUrl}}"], "path": ["movements", "receive-transfer"] },
+            "body": { "mode": "raw", "raw": "{\n  \"transferGroupId\": \"{{transferGroupId}}\",\n  \"employeeId\": {{managerCentralEmployeeId}},\n  \"decision\": \"ACCEPT\"\n}" },
+            "description": "El permiso para recibir se valida contra la bodega DESTINO (Norte); el manager de Central no la administra -> 403. Se ejecuta antes de aceptar la transferencia real, mientras el grupo sigue IN_TRANSIT."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 403', () => pm.response.to.have.status(403));",
+                  "const json = pm.response.json();",
+                  "const norteId = pm.environment.get('norteWarehouseId');",
+                  "pm.test('mensaje de permiso sobre bodega destino', () => pm.expect(JSON.stringify(json.message)).to.include(`is not allowed to manage warehouse #${norteId}`));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Receive-transfer ACCEPT (manager norte)",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{managerNorteToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/movements/receive-transfer", "host": ["{{baseUrl}}"], "path": ["movements", "receive-transfer"] },
+            "body": { "mode": "raw", "raw": "{\n  \"transferGroupId\": \"{{transferGroupId}}\",\n  \"employeeId\": {{managerNorteEmployeeId}},\n  \"decision\": \"ACCEPT\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "const movements = pm.response.json();",
+                  "pm.test('todos COMPLETED', () => movements.forEach((m) => pm.expect(m.status).to.eql('COMPLETED')));",
+                  "pm.test('stock destino sumo 4', () => pm.expect(movements[0].destinationStock.quantity).to.eql(4));",
+                  "pm.environment.set('demoStockIdNorte', movements[0].destinationStock.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Receive-transfer ACCEPT del pendiente historico del seed",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{managerNorteToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/movements/receive-transfer", "host": ["{{baseUrl}}"], "path": ["movements", "receive-transfer"] },
+            "body": { "mode": "raw", "raw": "{\n  \"transferGroupId\": \"{{pendingTransferGroupId}}\",\n  \"employeeId\": {{managerNorteEmployeeId}},\n  \"decision\": \"ACCEPT\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "const movements = pm.response.json();",
+                  "pm.test('todos COMPLETED', () => movements.forEach((m) => pm.expect(m.status).to.eql('COMPLETED')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Segunda transfer de 3 (variante Clasico) Central -> Norte",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{managerCentralToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/movements/transfer", "host": ["{{baseUrl}}"], "path": ["movements", "transfer"] },
+            "body": { "mode": "raw", "raw": "{\n  \"quantity\": 3,\n  \"productVariantId\": {{clasicoVariantId}},\n  \"originWarehouseId\": {{centralWarehouseId}},\n  \"destinationWarehouseId\": {{norteWarehouseId}},\n  \"employeeId\": {{managerCentralEmployeeId}}\n}" },
+            "description": "Usa la variante Clasico (no la demo, que quedo en 0 fisico en Central tras la primera transferencia). Se usa para demostrar el flujo de RECHAZO y reversion."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "const movements = pm.response.json();",
+                  "pm.test('todos IN_TRANSIT', () => movements.forEach((m) => pm.expect(m.status).to.eql('IN_TRANSIT')));",
+                  "pm.environment.set('secondTransferGroupId', movements[0].transferGroupId);",
+                  "pm.environment.set('stockBeforeReject', movements[0].sourceStock.quantity);",
+                  "pm.environment.set('rejectedMovementId', movements[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Receive-transfer REJECT (manager norte)",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{managerNorteToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/movements/receive-transfer", "host": ["{{baseUrl}}"], "path": ["movements", "receive-transfer"] },
+            "body": { "mode": "raw", "raw": "{\n  \"transferGroupId\": \"{{secondTransferGroupId}}\",\n  \"employeeId\": {{managerNorteEmployeeId}},\n  \"decision\": \"REJECT\"\n}" },
+            "description": "El permiso para recibir se valida contra el destino (Norte) incluso al rechazar."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "const movements = pm.response.json();",
+                  "pm.test('todos REJECTED', () => movements.forEach((m) => pm.expect(m.status).to.eql('REJECTED')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET movement rechazado (stock origen restaurado)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "url": { "raw": "{{baseUrl}}/movements/{{rejectedMovementId}}", "host": ["{{baseUrl}}"], "path": ["movements", "{{rejectedMovementId}}"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "const before = parseInt(pm.environment.get('stockBeforeReject'));",
+                  "pm.test('stock origen recupero las 3 unidades', () => pm.expect(json.sourceStock.quantity).to.eql(before + 3));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear reserva de 2 sobre stock demo en Norte",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/reservations", "host": ["{{baseUrl}}"], "path": ["reservations"] },
+            "body": { "mode": "raw", "raw": "{\n  \"sourceStockId\": {{demoStockIdNorte}},\n  \"quantity\": 2,\n  \"fromDate\": \"{{$isoTimestamp}}\",\n  \"toDate\": \"{{reservationToDate}}\"\n}" },
+            "description": "El stock demo (4 unidades) quedo en Norte tras la primera transferencia. Se reserva para despacharlo de vuelta a Central via transfer-from-reservation."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const toDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();",
+                  "pm.variables.set('reservationToDate', toDate);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.test('status ACTIVE', () => pm.expect(json.status).to.eql('ACTIVE'));",
+                  "pm.environment.set('norteDemoReservationId', json.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Transfer-from-reservation: Norte -> Central",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{managerNorteToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/movements/transfer-from-reservation", "host": ["{{baseUrl}}"], "path": ["movements", "transfer-from-reservation"] },
+            "body": { "mode": "raw", "raw": "{\n  \"employeeId\": {{managerNorteEmployeeId}},\n  \"reservationId\": {{norteDemoReservationId}},\n  \"destinationWarehouseId\": {{centralWarehouseId}}\n}" },
+            "description": "Despacho de pedido con destino en otra bodega: el permiso de origen se valida contra Norte (donde esta el stock reservado)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.test('movement IN_TRANSIT de 2 unidades', () => {",
+                  "  pm.expect(json.status).to.eql('IN_TRANSIT');",
+                  "  pm.expect(json.quantity).to.eql(2);",
+                  "});",
+                  "pm.environment.set('reservationTransferGroupId', json.transferGroupId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Receive-transfer ACCEPT (manager central) -> reserva COMPLETED",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{managerCentralToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/movements/receive-transfer", "host": ["{{baseUrl}}"], "path": ["movements", "receive-transfer"] },
+            "body": { "mode": "raw", "raw": "{\n  \"transferGroupId\": \"{{reservationTransferGroupId}}\",\n  \"employeeId\": {{managerCentralEmployeeId}},\n  \"decision\": \"ACCEPT\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "const movements = pm.response.json();",
+                  "pm.test('todos COMPLETED', () => movements.forEach((m) => pm.expect(m.status).to.eql('COMPLETED')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET reserva Norte -> COMPLETED",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "url": { "raw": "{{baseUrl}}/reservations/{{norteDemoReservationId}}", "host": ["{{baseUrl}}"], "path": ["reservations", "{{norteDemoReservationId}}"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('status COMPLETED', () => pm.expect(json.status).to.eql('COMPLETED'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Negativo: transfer de 9999 (imposible dejar origen negativo)",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{managerCentralToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/movements/transfer", "host": ["{{baseUrl}}"], "path": ["movements", "transfer"] },
+            "body": { "mode": "raw", "raw": "{\n  \"quantity\": 9999,\n  \"productVariantId\": {{demoVariantId}},\n  \"originWarehouseId\": {{centralWarehouseId}},\n  \"destinationWarehouseId\": {{norteWarehouseId}},\n  \"employeeId\": {{managerCentralEmployeeId}}\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));",
+                  "const json = pm.response.json();",
+                  "const variantId = pm.environment.get('demoVariantId');",
+                  "pm.test('mensaje de stock insuficiente', () => pm.expect(JSON.stringify(json.message)).to.include(`Insufficient stock for product variant ${variantId}`));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Negativo: receive-transfer con UUID aleatorio",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/movements/receive-transfer", "host": ["{{baseUrl}}"], "path": ["movements", "receive-transfer"] },
+            "body": { "mode": "raw", "raw": "{\n  \"transferGroupId\": \"{{$guid}}\",\n  \"employeeId\": {{adminEmployeeId}},\n  \"decision\": \"ACCEPT\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 404', () => pm.response.to.have.status(404));",
+                  "const json = pm.response.json();",
+                  "pm.test('mensaje de grupo inexistente', () => pm.expect(JSON.stringify(json.message)).to.include('No pending transfer found for group'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "07 - Trazabilidad, conciliacion y reportes",
+      "item": [
+        {
+          "name": "GET movimientos filtrados por bodega Central",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "url": {
+              "raw": "{{baseUrl}}/movements?warehouseId={{centralWarehouseId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["movements"],
+              "query": [{ "key": "warehouseId", "value": "{{centralWarehouseId}}" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const movements = pm.response.json();",
+                  "const centralId = parseInt(pm.environment.get('centralWarehouseId'));",
+                  "pm.test('todos los resultados tocan Central', () => {",
+                  "  movements.forEach((m) => {",
+                  "    const touchesCentral = m.sourceStock?.warehouse?.id === centralId || m.destinationStock?.warehouse?.id === centralId;",
+                  "    pm.expect(touchesCentral, `movement #${m.id}`).to.be.true;",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Conciliacion del invariante (stock demo en Central)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "url": {
+              "raw": "{{baseUrl}}/movements?productVariantId={{demoVariantId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["movements"],
+              "query": [{ "key": "productVariantId", "value": "{{demoVariantId}}" }]
+            },
+            "description": "Recomputa entradas - issues - transferencias-salientes(COMPLETED|IN_TRANSIT) + transferencias-entrantes(COMPLETED) filtrando por demoStockId (Central) y compara contra GET /stocks/:id.quantity."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const movements = pm.response.json();",
+                  "const stockId = parseInt(pm.environment.get('demoStockId'));",
+                  "const ISSUE_TYPES = ['ISSUE', 'ISSUE_FROM_RESERVATION'];",
+                  "const TRANSFER_TYPES = ['TRANSFER', 'TRANSFER_FROM_RESERVATION'];",
+                  "let computed = 0;",
+                  "for (const m of movements) {",
+                  "  const isSource = m.sourceStock?.id === stockId;",
+                  "  const isDestination = m.destinationStock?.id === stockId;",
+                  "  if (m.type === 'ENTRANCE' && isSource) computed += m.quantity;",
+                  "  else if (ISSUE_TYPES.includes(m.type) && isSource) computed -= m.quantity;",
+                  "  else if (TRANSFER_TYPES.includes(m.type)) {",
+                  "    if (isSource && (m.status === 'IN_TRANSIT' || m.status === 'COMPLETED')) computed -= m.quantity;",
+                  "    if (isDestination && m.status === 'COMPLETED') computed += m.quantity;",
+                  "  }",
+                  "}",
+                  "pm.environment.set('reconciliationComputed', computed);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET stock demo en Central (comparar contra el invariante)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }] },
+            "url": { "raw": "{{baseUrl}}/stocks/{{demoStockId}}", "host": ["{{baseUrl}}"], "path": ["stocks", "{{demoStockId}}"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "const computed = parseInt(pm.environment.get('reconciliationComputed'));",
+                  "pm.test('el invariante recomputado coincide con stock.quantity', () => pm.expect(computed).to.eql(json.quantity));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET analytics/need-reorder (contiene la variante demo)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{analystToken}}", "type": "string" }] },
+            "url": { "raw": "{{baseUrl}}/analytics/need-reorder", "host": ["{{baseUrl}}"], "path": ["analytics", "need-reorder"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const items = pm.response.json();",
+                  "const variantId = parseInt(pm.environment.get('demoVariantId'));",
+                  "pm.test('la variante demo necesita reorden', () => pm.expect(items.some((i) => i.productVariantId === variantId)).to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET analytics/rotation/:productId (consumo > 0)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{analystToken}}", "type": "string" }] },
+            "url": { "raw": "{{baseUrl}}/analytics/rotation/{{demoProductId}}", "host": ["{{baseUrl}}"], "path": ["analytics", "rotation", "{{demoProductId}}"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('hubo movimientos y rotacion > 0', () => {",
+                  "  pm.expect(json.movements).to.be.above(0);",
+                  "  pm.expect(json.rotation).to.be.above(0);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET top-moving de Central (manager central)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{managerCentralToken}}", "type": "string" }] },
+            "url": { "raw": "{{baseUrl}}/warehouses/{{centralWarehouseId}}/analytics/top-moving", "host": ["{{baseUrl}}"], "path": ["warehouses", "{{centralWarehouseId}}", "analytics", "top-moving"] }
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('status 200', () => pm.response.to.have.status(200));"] } }
+          ]
+        },
+        {
+          "name": "Negativo: top-moving de Central con manager norte",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{managerNorteToken}}", "type": "string" }] },
+            "url": { "raw": "{{baseUrl}}/warehouses/{{centralWarehouseId}}/analytics/top-moving", "host": ["{{baseUrl}}"], "path": ["warehouses", "{{centralWarehouseId}}", "analytics", "top-moving"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 403', () => pm.response.to.have.status(403));",
+                  "const json = pm.response.json();",
+                  "pm.test('mensaje de acceso denegado', () => pm.expect(JSON.stringify(json.message)).to.include('Access denied to this warehouse analytics'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Negativo: need-reorder con rol manager",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{managerCentralToken}}", "type": "string" }] },
+            "url": { "raw": "{{baseUrl}}/analytics/need-reorder", "host": ["{{baseUrl}}"], "path": ["analytics", "need-reorder"] }
+          },
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('status 403', () => pm.response.to.have.status(403));"] } }
+          ]
+        }
+      ]
+    }
+  ]
+}
