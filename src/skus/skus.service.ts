@@ -21,12 +21,19 @@ export class SkusService {
     private readonly stockRepository: Repository<Stock>,
   ) {}
 
-  async create(createSkusDto: CreateSkusDto): Promise<Sku> {
-    const existingSku = await this.skuRepository.findOne({ where: { id: createSkusDto.id } });
-    if (existingSku) {
-      throw new ConflictException(`The sku with id #${createSkusDto.id} already exists`);
-    }
+  private buildSkuId(variantName: string, lotId: number, lotDateOfEntry: Date): string {
+    const varietal = variantName
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z]/g, '')
+      .toUpperCase()
+      .substring(0, 4);
+    const anada = new Date(lotDateOfEntry).getUTCFullYear();
+    const lote = `L${String(lotId).padStart(4, '0')}`;
+    return `${varietal}-${anada}-${lote}`;
+  }
 
+  async create(createSkusDto: CreateSkusDto): Promise<Sku> {
     const lot = await this.lotRepository.findOne({ where: { id: createSkusDto.lotId } });
     if (!lot) {
       throw new NotFoundException(`The lot with id #${createSkusDto.lotId} could not be found`);
@@ -37,8 +44,15 @@ export class SkusService {
       throw new NotFoundException(`The product variant with id #${createSkusDto.productVariantId} could not be found`);
     }
 
+    const generatedId = this.buildSkuId(productVariant.name, lot.id, lot.dateOfEntry);
+
+    const existingSku = await this.skuRepository.findOne({ where: { id: generatedId } });
+    if (existingSku) {
+      throw new ConflictException(`An SKU with the generated id '${generatedId}' already exists. The combination of variant, lot year and lot id must be unique.`);
+    }
+
     const sku = this.skuRepository.create({
-      id: createSkusDto.id,
+      id: generatedId,
       dateOfEntry: new Date(createSkusDto.dateOfEntry),
       quantity: createSkusDto.quantity,
       unitCost: createSkusDto.unitCost,

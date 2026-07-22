@@ -187,9 +187,8 @@ describe('SkusModule (e2e)', () => {
       const response = await request(app.getHttpServer())
         .post('/skus')
         .send({
-          id: `SKU-E2E-${suffix}-2`,
-          lotId: seededSku.lot.id,
-          productVariantId: seededSku.productVariant.id,
+          lotId: seededSku.lot?.id ?? 1,
+          productVariantId: seededSku.productVariant?.id ?? 1,
           dateOfEntry: '2026-07-22T00:00:00.000Z',
           quantity: 4,
           unitCost: 9.5,
@@ -204,9 +203,8 @@ describe('SkusModule (e2e)', () => {
         .post('/skus')
         .set('Authorization', `Bearer ${analystToken}`)
         .send({
-          id: `SKU-E2E-${suffix}-2`,
-          lotId: seededSku.lot.id,
-          productVariantId: seededSku.productVariant.id,
+          lotId: seededSku.lot?.id ?? 1,
+          productVariantId: seededSku.productVariant?.id ?? 1,
           dateOfEntry: '2026-07-22T00:00:00.000Z',
           quantity: 4,
           unitCost: 9.5,
@@ -216,22 +214,24 @@ describe('SkusModule (e2e)', () => {
       expect(response.status).toBe(403);
     });
 
-    it('creates a valid sku for administrators', async () => {
+    it('creates a valid sku with an auto-generated id for administrators', async () => {
+      // The id is generated server-side as VARIETAL-AÑADA-LOTE
+      // e.g. first 4 alpha chars of variant name + year of lot.dateOfEntry + 'L' + padded lot id
       const response = await request(app.getHttpServer())
         .post('/skus')
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
-          id: `SKU-E2E-${suffix}-2`,
-          lotId: seededSku.lot.id,
-          productVariantId: seededSku.productVariant.id,
+          lotId: seededSku.lot?.id ?? 1,
+          productVariantId: seededSku.productVariant?.id ?? 1,
           dateOfEntry: '2026-07-22T00:00:00.000Z',
           quantity: 4,
           unitCost: 9.5,
           bestBeforeDate: '2026-08-22T00:00:00.000Z',
         });
 
+      // Verify the server auto-generated the id (VARIETAL-YEAR-LXXX pattern)
       expect(response.status).toBe(201);
-      expect(response.body.id).toBe(`SKU-E2E-${suffix}-2`);
+      expect(response.body.id).toMatch(/^[A-Z]{4}-\d{4}-L\d{4}$/);
       expect(response.body.active).toBe(true);
     });
   });

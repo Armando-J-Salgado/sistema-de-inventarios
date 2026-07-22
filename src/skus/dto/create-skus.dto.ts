@@ -1,12 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsDateString, IsInt, IsNotEmpty, IsNumber, IsPositive, IsString, Min } from 'class-validator';
+import { IsDateString, IsInt, IsNumber, IsPositive, Min } from 'class-validator';
 
 export class CreateSkusDto {
-	@ApiProperty({ example: 'PV1-L1-1', description: 'Unique code for an SKU' })
-	@IsString()
-	@IsNotEmpty()
-	id: string;
-
 	@ApiProperty({ example: 1, description: 'Identifier of the product variant related to the SKU' })
 	@IsInt()
 	@IsPositive()
