@@ -3,7 +3,6 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { TypeOrmModule, getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
@@ -22,6 +21,7 @@ import { Reservation } from '../src/reservations/entities/reservation.entity';
 import { Movement } from '../src/movements/entities/movement.entity';
 import { Warehouse } from '../src/warehouses/entities/warehouse.entity';
 import { LotState } from '../src/lots/enums/lot-state.enum';
+import { Repository} from 'typeorm';
 
 dotenv.config({ path: path.resolve(__dirname, '../.env.testing') });
 
@@ -59,6 +59,7 @@ describe('LotsModule (e2e)', () => {
         }),
         AuthModule,
         LotsModule,
+        TypeOrmModule.forFeature([Category, Provider, Product, ProductVariant, Lot, Employee, Sku, Alert, Stock, Reservation, Movement, Warehouse]),
       ],
     }).compile();
 
@@ -75,7 +76,10 @@ describe('LotsModule (e2e)', () => {
     skuRepo = moduleFixture.get<Repository<Sku>>(getRepositoryToken(Sku));
 
     await skuRepo.delete({ id: 'LOT-E2E-SKU-1' });
-    await lotRepo.delete({ id: 0 });
+    const existingProvider = await providerRepo.findOne({ where: { email: 'lot-provider@test.com' } });
+    if (existingProvider) {
+      await lotRepo.delete({ providerId: existingProvider.id });
+    }
     await productVariantRepo.delete({ name: 'Sparkling Water 500ml' });
     await productRepo.delete({ name: 'Sparkling Water' });
     await providerRepo.delete({ email: 'lot-provider@test.com' });
@@ -148,6 +152,8 @@ describe('LotsModule (e2e)', () => {
       active: true,
       lot: seededLot,
       productVariant,
+      dateOfEntry: new Date('2026-07-22T10:00:00.000Z'),
+      bestBeforeDate: new Date('2027-07-22T10:00:00.000Z')
     });
 
     const adminLogin = await request(app.getHttpServer())
@@ -162,12 +168,17 @@ describe('LotsModule (e2e)', () => {
   });
 
   afterAll(async () => {
+    // 1. Borrar SKUs primero
     if (skuRepo) {
       await skuRepo.delete({ id: 'LOT-E2E-SKU-1' });
     }
-    if (lotRepo && seededLot) {
-      await lotRepo.delete({ id: seededLot.id });
+    
+    // 2. Borrar TODOS los lots de este proveedor (incluyendo el creado en el test "creates a valid lot")
+    if (provider && provider.id) {
+      await lotRepo.delete({ providerId: provider.id });
     }
+
+    // 3. Borrar entidades padre en orden seguro (sin violar FK)
     if (productVariantRepo && productVariant) {
       await productVariantRepo.delete({ id: productVariant.id });
     }
@@ -184,6 +195,8 @@ describe('LotsModule (e2e)', () => {
       await employeeRepo.delete({ email: 'lot-admin@test.com' });
       await employeeRepo.delete({ email: 'lot-analyst@test.com' });
     }
+
+    // 4. Cerrar la aplicación de Nest (esto ya se encarga de cerrar la conexión de TypeORM correctamente)
     if (app) {
       await app.close();
     }

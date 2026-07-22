@@ -14,6 +14,7 @@ import { MovementStatus, MovementType } from "src/enums/movement-type.enum";
 import { MovementValidationContext } from "src/validations/movement-validation-context.interface";
 import { ValidationHandler } from "src/validations/validation.handler";
 import { ValidationFactory } from "src/factories/validation.factory";
+import { EventEmitter2 } from "@nestjs/event-emitter";
 
 @Injectable()
 export class IssueFromReservationStrategy implements MovementStrategy<IssueFromReservationDto> {
@@ -29,6 +30,7 @@ export class IssueFromReservationStrategy implements MovementStrategy<IssueFromR
     @InjectRepository(Employee) private readonly employeeRepository: Repository<Employee>,
     @InjectRepository(Movement) private readonly movementRepository: Repository<Movement>,
     private readonly dataSource: DataSource,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async execute(dto: IssueFromReservationDto): Promise<Movement> {
@@ -70,6 +72,8 @@ export class IssueFromReservationStrategy implements MovementStrategy<IssueFromR
         totalCost: stock.sku.unitCost * quantity,
         reservation,
       });
+
+      this.eventEmitter.emitAsync('movement.created', movement);
       return manager.save(Movement, movement);
     });
   }

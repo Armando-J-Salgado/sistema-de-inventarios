@@ -7,6 +7,7 @@ import { Sku } from 'src/skus/entities/skus.entity';
 import { DataSource } from 'typeorm';
 import { BadRequestException } from '@nestjs/common';
 import { ValidationFactory } from 'src/factories/validation.factory';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 jest.mock('src/factories/validation.factory');
 
@@ -17,6 +18,7 @@ describe('IssueMovementStrategy', () => {
   let skuRepo: any;
   let dataSource: any;
   let manager: any;
+  let eventEmitter: jest.Mocked<EventEmitter2>;
 
   beforeEach(async () => {
     const mockResolver = {
@@ -41,6 +43,10 @@ describe('IssueMovementStrategy', () => {
       transaction: jest.fn().mockImplementation(async (callback) => callback(mockManager)),
     };
 
+   const mockEventEmitter = {
+     emitAsync: jest.fn(),
+   };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         IssueMovementStrategy,
@@ -48,6 +54,7 @@ describe('IssueMovementStrategy', () => {
         { provide: StockAllocationService, useValue: mockAllocation },
         { provide: getRepositoryToken(Sku), useValue: mockSkuRepo },
         { provide: DataSource, useValue: mockDataSource },
+        {provide: EventEmitter2, useValue: mockEventEmitter},
       ],
     }).compile();
 
@@ -57,6 +64,7 @@ describe('IssueMovementStrategy', () => {
     skuRepo = module.get(getRepositoryToken(Sku));
     dataSource = module.get(DataSource);
     manager = mockManager;
+    eventEmitter = module.get(EventEmitter2);
   });
 
   afterEach(() => {
@@ -135,5 +143,6 @@ describe('IssueMovementStrategy', () => {
     expect(manager.save).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ availableCapacity: 110 }));
 
     expect(result).toEqual([{ id: 1 }]);
+    expect(eventEmitter.emitAsync).toHaveBeenCalledWith('movement.created', expect.objectContaining({ id: 1 }));
   });
 });

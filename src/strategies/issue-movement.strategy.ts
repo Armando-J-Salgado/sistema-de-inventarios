@@ -13,6 +13,7 @@ import { ValidationFactory } from 'src/factories/validation.factory';
 import { ValidationHandler } from 'src/validations/validation.handler';
 import { MovementValidationContext } from 'src/validations/movement-validation-context.interface';
 import { StockAllocationService } from 'src/movements/support/stock-allocation.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @Injectable()
 export class IssueMovementStrategy implements MovementStrategy<CreateIssueDto> {
@@ -23,6 +24,7 @@ export class IssueMovementStrategy implements MovementStrategy<CreateIssueDto> {
     @InjectRepository(Sku) private readonly skuRepository: Repository<Sku>,
     private readonly dataSource: DataSource,
     private readonly stockAllocation: StockAllocationService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async execute(dto: CreateIssueDto): Promise<Movement[]> {
@@ -71,6 +73,8 @@ export class IssueMovementStrategy implements MovementStrategy<CreateIssueDto> {
           date: new Date(),
           totalCost: stock.sku.unitCost * quantity,
         });
+
+        this.eventEmitter.emitAsync('movement.created', movement);
         movements.push(await manager.save(Movement, movement));
       }
 

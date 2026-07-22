@@ -9,6 +9,7 @@ import { Movement } from 'src/movements/entities/movement.entity';
 import { DataSource } from 'typeorm';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ValidationFactory } from 'src/factories/validation.factory';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 jest.mock('src/factories/validation.factory');
 
@@ -20,6 +21,7 @@ describe('TransferMovementStrategy', () => {
   let warehouseRepo: any;
   let dataSource: any;
   let manager: any;
+  let eventEmitter: jest.Mocked<EventEmitter2>;
 
   beforeEach(async () => {
     const mockResolver = {
@@ -53,6 +55,10 @@ describe('TransferMovementStrategy', () => {
       transaction: jest.fn().mockImplementation(async (callback) => callback(mockManager)),
     };
 
+   const mockEventEmitter = {
+     emitAsync: jest.fn(),
+   };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TransferMovementStrategy,
@@ -62,6 +68,7 @@ describe('TransferMovementStrategy', () => {
         { provide: getRepositoryToken(Warehouse), useValue: mockRepo },
         { provide: getRepositoryToken(Movement), useValue: mockMovementRepo },
         { provide: DataSource, useValue: mockDataSource },
+        { provide: EventEmitter2, useValue: mockEventEmitter},
       ],
     }).compile();
 
@@ -72,6 +79,7 @@ describe('TransferMovementStrategy', () => {
     warehouseRepo = module.get(getRepositoryToken(Warehouse));
     dataSource = module.get(DataSource);
     manager = mockManager;
+    eventEmitter = module.get(EventEmitter2);
   });
 
   afterEach(() => {
@@ -143,5 +151,6 @@ describe('TransferMovementStrategy', () => {
 
     expect(result).toEqual([{ id: 1 }]);
     expect(manager.create).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ transferGroupId: expect.any(String) }));
+    expect(eventEmitter.emitAsync).toHaveBeenCalledWith('movement.created', expect.objectContaining({ id: 1 }));
   });
 });

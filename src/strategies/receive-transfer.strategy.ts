@@ -12,6 +12,7 @@ import { Stock } from "src/stocks/entities/stock.entity";
 import { MovementValidationContext } from "src/validations/movement-validation-context.interface";
 import { ValidationHandler } from "src/validations/validation.handler";
 import { ValidationFactory } from "src/factories/validation.factory";
+import { EventEmitter2 } from "@nestjs/event-emitter";
 
 @Injectable()
 export class ReceiveTransferStrategy implements MovementStrategy<ReceiveTransferDto> {
@@ -22,6 +23,7 @@ export class ReceiveTransferStrategy implements MovementStrategy<ReceiveTransfer
     @InjectRepository(Movement) private readonly movementRepository: Repository<Movement>,
     @InjectRepository(Warehouse) private readonly warehouseRepository: Repository<Warehouse>,
     private readonly dataSource: DataSource,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async execute(dto: ReceiveTransferDto): Promise<Movement[]> {
@@ -60,6 +62,7 @@ export class ReceiveTransferStrategy implements MovementStrategy<ReceiveTransfer
           movement.status = MovementStatus.REJECTED;
         }
         updated.push(await manager.save(Movement, movement));
+        this.eventEmitter.emitAsync('movement.created', movement);
       }
 
       if (dto.decision === 'ACCEPT') {
