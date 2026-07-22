@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { MovementsController } from './movements.controller';
 import { MovementsService } from './movements.service';
 import { JwtAuthGuard } from 'src/jwt/jwt.guard';

@@ -3,6 +3,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import 'dotenv/config';
 import {TypeOrmModule} from '@nestjs/typeorm';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { CategoriesModule } from './categories/categories.module';
 import { ProvidersModule } from './providers/providers.module';
 import { EmployeesModule } from './employees/employees.module';
@@ -28,6 +29,9 @@ import { Reservation } from './reservations/entities/reservation.entity';
 import { Movement } from './movements/entities/movement.entity';
 import { Warehouse } from './warehouses/entities/warehouse.entity';
 import { AuthModule } from './auth/auth.module';
+import { AnalyticsModule } from './analytics/analytics.module';
+import { EventsModule } from './events/events.module';
+import { CommonModule } from './common/common.module';
 
 @Module({
   imports: [TypeOrmModule.forRoot({
@@ -39,7 +43,7 @@ import { AuthModule } from './auth/auth.module';
     database: process.env.DB_NAME,
     entities: [Category, Provider, Product, ProductVariant, Lot, Employee, Sku, Alert, Stock, Reservation, Movement, Warehouse],
     synchronize: true,
-  }), CategoriesModule, ProvidersModule, EmployeesModule, ProductsModule, ProductVariantsModule, LotsModule, SkusModule, WarehousesModule, AlertsModule, StocksModule, ReservationsModule, MovementsModule, AuthModule],
+  }), EventEmitterModule.forRoot(), CategoriesModule, ProvidersModule, EmployeesModule, ProductsModule, ProductVariantsModule, LotsModule, SkusModule, WarehousesModule, AlertsModule, StocksModule, ReservationsModule, MovementsModule, AuthModule, AnalyticsModule, EventsModule, CommonModule],
   controllers: [AppController],
   providers: [AppService],
 })

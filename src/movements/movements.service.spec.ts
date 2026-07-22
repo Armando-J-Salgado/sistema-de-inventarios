@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { MovementsService } from './movements.service';
 import { MovementStrategyFactory } from 'src/factories/movement-strategy.factory';
 import { getRepositoryToken } from '@nestjs/typeorm';
