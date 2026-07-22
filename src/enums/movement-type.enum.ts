@@ -1,0 +1,18 @@
+export enum MovementType {
+  ENTRANCE = 'ENTRANCE',
+  ISSUE = 'ISSUE',
+  ISSUE_FROM_RESERVATION = 'ISSUE_FROM_RESERVATION',
+  TRANSFER = 'TRANSFER',
+  TRANSFER_FROM_RESERVATION = 'TRANSFER_FROM_RESERVATION'
+}
+
+export enum MovementStatus {
+  COMPLETED = 'COMPLETED',
+  IN_TRANSIT = 'IN_TRANSIT',
+  REJECTED = 'REJECTED',
+}
+
+export enum ReceiveDecision {
+  ACCEPT = 'ACCEPT',
+  REJECT = 'REJECT',
+}
