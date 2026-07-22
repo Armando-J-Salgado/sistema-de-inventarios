@@ -52,8 +52,8 @@ describe('WarehouseAccessGuard', () => {
     await expect(guard.canActivate(context)).resolves.toBe(true);
   });
 
-  it('should allow access if user is WAREHOUSE_MANAGER and warehouse.employee.id matches', async () => {
-    mockRepository.findOne.mockResolvedValue({ id: 1, employee: { id: 10 } } as any);
+  it('should allow access if user is WAREHOUSE_MANAGER and warehouse.administrator.id matches', async () => {
+    mockRepository.findOne.mockResolvedValue({ id: 1, administrator: { id: 10 } } as any);
     const context = createMockContext(
       { roles: 'WAREHOUSE_MANAGER', employeeId: 10 }, 
       { warehouseId: '1' }
@@ -61,8 +61,8 @@ describe('WarehouseAccessGuard', () => {
     await expect(guard.canActivate(context)).resolves.toBe(true);
   });
 
-  it('should deny access if user is WAREHOUSE_MANAGER and warehouse.employee.id does NOT match', async () => {
-    mockRepository.findOne.mockResolvedValue({ id: 1, employee: { id: 20 } } as any);
+  it('should deny access if user is WAREHOUSE_MANAGER and warehouse.administrator.id does NOT match', async () => {
+    mockRepository.findOne.mockResolvedValue({ id: 1, administrator: { id: 20 } } as any);
     const context = createMockContext(
       { roles: 'WAREHOUSE_MANAGER', employeeId: 10 }, 
       { warehouseId: '1' }

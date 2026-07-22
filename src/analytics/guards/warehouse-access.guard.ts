@@ -31,7 +31,7 @@ export class WarehouseAccessGuard implements CanActivate {
       // Query DB for warehouse manager
       const warehouse = await this.warehouseRepository.findOne({
         where: { id: requestedWarehouseId },
-        relations: ['employee'],
+        relations: ['administrator'],
       });
 
       if (!warehouse) {
