@@ -2,7 +2,7 @@ import { ApiProperty } from "@nestjs/swagger";
 import { Lot } from "src/lots/entities/lot.entity";
 import { ProductVariant } from "src/product-variants/entities/product-variant.entity";
 import { Stock } from "src/stocks/entities/stock.entity";
-import { Column, CreateDateColumn, DeleteDateColumn, Entity, ManyToOne, OneToMany, PrimaryColumn, UpdateDateColumn } from "typeorm";
+import { Column, CreateDateColumn, DeleteDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryColumn, UpdateDateColumn } from "typeorm";
 
 @Entity()
 export class Sku {
@@ -46,11 +46,13 @@ export class Sku {
     deletedAt: Date;
 
     @ApiProperty({type: ()=>Lot, description: 'Lot of origin from this specific items'})
-    @ManyToOne(()=>Lot, (lot)=>lot.skus)
+    @ManyToOne(()=>Lot, (lot)=>lot.skus, { nullable: false })
+    @JoinColumn({ name: 'lotId' })
     lot: Lot;
 
     @ApiProperty({type: ()=>ProductVariant, description: 'Specific type of producto of these items'})
-    @ManyToOne(()=>ProductVariant, (productVariant)=>productVariant.skus)
+    @ManyToOne(()=>ProductVariant, (productVariant)=>productVariant.skus, { nullable: false })
+    @JoinColumn({ name: 'productVariantId' })
     productVariant: ProductVariant;
 
     @ApiProperty({type: ()=>[Stock], description: 'Inventorys of the specific items stored in a warehouse'})
