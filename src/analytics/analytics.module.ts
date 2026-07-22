@@ -8,6 +8,7 @@ import { RotationCalculator } from './calculators/rotation.calculator';
 import { CoverageCalculator } from './calculators/coverage.calculator';
 import { TopMovingCalculator } from './calculators/top-moving.calculator';
 import { NeedReorderCalculator } from './calculators/need-reorder.calculator';
+import { AnalyticsService } from './analytics.service';
 import { Warehouse } from '../warehouses/entities/warehouse.entity';
 
 @Module({
@@ -23,6 +24,7 @@ import { Warehouse } from '../warehouses/entities/warehouse.entity';
     CoverageCalculator,
     TopMovingCalculator,
     NeedReorderCalculator,
+    AnalyticsService,
   ],
   exports: [
     GlobalAnalyticsRepository,
@@ -31,6 +33,7 @@ import { Warehouse } from '../warehouses/entities/warehouse.entity';
     CoverageCalculator,
     TopMovingCalculator,
     NeedReorderCalculator,
+    AnalyticsService,
   ],
 })
 export class AnalyticsModule {}

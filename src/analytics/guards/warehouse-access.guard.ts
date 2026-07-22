@@ -31,14 +31,14 @@ export class WarehouseAccessGuard implements CanActivate {
       // Query DB for warehouse manager
       const warehouse = await this.warehouseRepository.findOne({
         where: { id: requestedWarehouseId },
-        relations: ['employee'],
+        relations: ['administrator'],
       });
 
       if (!warehouse) {
         throw new ForbiddenException('Warehouse not found');
       }
 
-      if (warehouse.employee?.id !== user.employeeId) {
+      if (warehouse.administrator?.id !== user.employeeId) {
         throw new ForbiddenException('Access denied to this warehouse analytics');
       }
       

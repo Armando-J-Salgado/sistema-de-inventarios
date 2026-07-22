@@ -11,7 +11,7 @@ import { Warehouse } from '../warehouses/entities/warehouse.entity';
 describe('AnalyticsModule (Integration)', () => {
   let app: INestApplication<App>;
   let mockWarehouseRepo = {
-    findOne: jest.fn().mockResolvedValue({ id: 5, employee: { id: 10 } })
+    findOne: jest.fn().mockResolvedValue({ id: 5, administrator: { id: 10 } })
   };
 
   beforeEach(async () => {
