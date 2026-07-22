@@ -1,6 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { Warehouse } from "../../warehouses/entities/warehouse.entity";
-import { Column, CreateDateColumn, DeleteDateColumn, Entity, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { Column, CreateDateColumn, DeleteDateColumn, Entity, JoinColumn, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 
 @Entity()
 export class Employee {
@@ -48,6 +48,7 @@ export class Employee {
     deletedAt: Date;
 
     @ApiProperty({type: ()=>Warehouse, description: 'Warehouse administrated by the employee'})
-    @OneToOne(()=>Warehouse, (warehouse)=>warehouse.administrator)
+    @OneToOne(()=>Warehouse, (warehouse)=>warehouse.administrator, { nullable: true })
+    @JoinColumn()
     warehouse: Warehouse;
 }
