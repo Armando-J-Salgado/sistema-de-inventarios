@@ -14,11 +14,11 @@ export class Reservation {
 	quantity: number;
 
 	@ApiProperty({example: '2026-07-19T19:17:00.00Z', description: 'Start date of the reservation'})
-
+	@Column({type: 'timestamp'})
 	fromDate: Date;
 
 	@ApiProperty({example: '2026-07-19T19:17:00.00Z', description: 'End date of the reservation'})
-
+	@Column({type: 'timestamp'})
 	toDate: Date;
 
 	@ApiProperty({example: 'PENDING', description: 'Status of the reservation'})
