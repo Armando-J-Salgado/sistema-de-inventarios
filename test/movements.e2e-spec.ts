@@ -35,6 +35,18 @@ dotenv.config({ path: path.resolve(__dirname, '../.env.testing') });
 
 jest.setTimeout(30000);
 
+const SAFE_TRANSFER_GROUP_ID = 1_000_000;
+
+async function withSafeTransferGroupId<T>(fn: () => Promise<T>): Promise<T> {
+  const dateNowSpy = jest.spyOn(Date, 'now').mockReturnValue(SAFE_TRANSFER_GROUP_ID);
+
+  try {
+    return await fn();
+  } finally {
+    dateNowSpy.mockRestore();
+  }
+}
+
 describe('MovementsModule (e2e)', () => {
   let app: INestApplication<App>;
   let jwtService: JwtService;
@@ -349,16 +361,18 @@ describe('MovementsModule (e2e)', () => {
 
   describe('POST /movements/transfer', () => {
     it('returns 201 on happy path and creates IN_TRANSIT movements', async () => {
-      const res = await request(app.getHttpServer())
-        .post('/movements/transfer')
-        .set('Authorization', `Bearer ${adminToken}`)
-        .send({
-          quantity: 10,
-          productVariantId: variant.id,
-          originWarehouseId: originWarehouse.id,
-          destinationWarehouseId: destWarehouse.id,
-          employeeId: adminEmployee.id,
-        });
+      const res = await withSafeTransferGroupId(() =>
+        request(app.getHttpServer())
+          .post('/movements/transfer')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            quantity: 10,
+            productVariantId: variant.id,
+            originWarehouseId: originWarehouse.id,
+            destinationWarehouseId: destWarehouse.id,
+            employeeId: adminEmployee.id,
+          }),
+      );
 
       expect(res.status).toBe(201);
       expect(res.body[0].status).toBe(MovementStatus.IN_TRANSIT);
@@ -376,16 +390,18 @@ describe('MovementsModule (e2e)', () => {
   describe('POST /movements/receive-transfer', () => {
     it('returns 201 on ACCEPT happy path', async () => {
       // 1. Create a fresh transfer movement specifically for this test
-      const transferRes = await request(app.getHttpServer())
-        .post('/movements/transfer')
-        .set('Authorization', `Bearer ${adminToken}`)
-        .send({
-          quantity: 5,
-          productVariantId: variant.id,
-          originWarehouseId: originWarehouse.id,
-          destinationWarehouseId: destWarehouse.id,
-          employeeId: adminEmployee.id,
-        });
+      const transferRes = await withSafeTransferGroupId(() =>
+        request(app.getHttpServer())
+          .post('/movements/transfer')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            quantity: 5,
+            productVariantId: variant.id,
+            originWarehouseId: originWarehouse.id,
+            destinationWarehouseId: destWarehouse.id,
+            employeeId: adminEmployee.id,
+          }),
+      );
 
       const groupId = transferRes.body[0].transferGroupId;
       expect(groupId).toBeDefined();
@@ -436,14 +452,16 @@ describe('MovementsModule (e2e)', () => {
         toDate: new Date(Date.now() + 86400000), // +1 day
       });
 
-      const res = await request(app.getHttpServer())
-        .post('/movements/transfer-from-reservation')
-        .set('Authorization', `Bearer ${adminToken}`)
-        .send({
-          reservationId: newRes.id,
-          destinationWarehouseId: destWarehouse.id,
-          employeeId: adminEmployee.id,
-        });
+      const res = await withSafeTransferGroupId(() =>
+        request(app.getHttpServer())
+          .post('/movements/transfer-from-reservation')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            reservationId: newRes.id,
+            destinationWarehouseId: destWarehouse.id,
+            employeeId: adminEmployee.id,
+          }),
+      );
 
       expect(res.status).toBe(201);
       expect(res.body.type).toBe(MovementType.TRANSFER);
