@@ -1,13 +1,13 @@
 import { ValidationFactory } from './validation.factory';
-import { LotAvailableValidator } from 'src/validations/lot-available.validator';
-import { SkuExistenceValidator } from 'src/validations/sku-existence.validator';
-import { IsWarehouseManagerValidator } from 'src/validations/is-warehouse-manager.validator';
-import { WarehouseCapacityValidator } from 'src/validations/warehouse-capacity.validator';
-import { ProductVariantExistenceValidator } from 'src/validations/product-variant-existence.validator';
-import { ReservationExistenceValidator } from 'src/validations/reservation-existence.validator';
-import { ReservationActiveStatusValidator } from 'src/validations/reservation-status.validator';
-import { StockAvailabilityValidator } from 'src/validations/stock-availability.validator';
-import { DestinationWarehouseCapacityValidator } from 'src/validations/destination-warehouse-capacity.validator';
+import { LotAvailableValidator } from '../validations/lot-available.validator';
+import { SkuExistenceValidator } from '../validations/sku-existence.validator';
+import { IsWarehouseManagerValidator } from '../validations/is-warehouse-manager.validator';
+import { WarehouseCapacityValidator } from '../validations/warehouse-capacity.validator';
+import { ProductVariantExistenceValidator } from '../validations/product-variant-existence.validator';
+import { ReservationExistenceValidator } from '../validations/reservation-existence.validator';
+import { ReservationActiveStatusValidator } from '../validations/reservation-status.validator';
+import { StockAvailabilityValidator } from '../validations/stock-availability.validator';
+import { DestinationWarehouseCapacityValidator } from '../validations/destination-warehouse-capacity.validator';
 import { BadRequestException } from '@nestjs/common';
 
 describe('ValidationFactory', () => {

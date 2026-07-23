@@ -1,8 +1,5 @@
-import { Employee } from "src/employees/entities/employee.entity";
-import { Sku } from "src/skus/entities/skus.entity";
-import { Warehouse } from "src/warehouses/entities/warehouse.entity";
 import { ValidationHandler } from "./validation.handler";
-import { BadRequestException, ForbiddenException } from "@nestjs/common";
+import { ForbiddenException } from "@nestjs/common";
 import { MovementValidationContext } from "./movement-validation-context.interface";
 
 export class IsWarehouseManagerValidator extends ValidationHandler {

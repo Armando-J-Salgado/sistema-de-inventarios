@@ -1,17 +1,17 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { TransferMovementStrategy } from './transfer-movement.strategy';
-import { MovementEntityResolverService } from 'src/movements/support/movement-entity-resolver.service';
-import { StockAllocationService } from 'src/movements/support/stock-allocation.service';
+import { MovementEntityResolverService } from '../movements/support/movement-entity-resolver.service';
+import { StockAllocationService } from '../movements/support/stock-allocation.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Sku } from 'src/skus/entities/skus.entity';
-import { Warehouse } from 'src/warehouses/entities/warehouse.entity';
-import { Movement } from 'src/movements/entities/movement.entity';
+import { Sku } from '../skus/entities/skus.entity';
+import { Warehouse } from '../warehouses/entities/warehouse.entity';
+import { Movement } from '../movements/entities/movement.entity';
 import { DataSource } from 'typeorm';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { ValidationFactory } from 'src/factories/validation.factory';
+import { ValidationFactory } from '../factories/validation.factory';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
-jest.mock('src/factories/validation.factory');
+jest.mock('../factories/validation.factory');
 
 describe('TransferMovementStrategy', () => {
   let strategy: TransferMovementStrategy;

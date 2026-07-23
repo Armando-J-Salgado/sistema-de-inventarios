@@ -4,8 +4,8 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { StocksService } from './stocks.service';
 import { Stock } from './entities/stock.entity';
-import { Reservation } from 'src/reservations/entities/reservation.entity';
-import { Sku } from 'src/skus/entities/skus.entity';
+import { Reservation } from '../reservations/entities/reservation.entity';
+import { Sku } from '../skus/entities/skus.entity';
 import { ACTIVE_RESERVATION_STATUSES } from './constants';
 
 describe('StocksService', () => {

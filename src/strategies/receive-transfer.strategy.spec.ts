@@ -1,16 +1,16 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ReceiveTransferStrategy } from './receive-transfer.strategy';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Employee } from 'src/employees/entities/employee.entity';
-import { Movement } from 'src/movements/entities/movement.entity';
-import { Warehouse } from 'src/warehouses/entities/warehouse.entity';
+import { Employee } from '../employees/entities/employee.entity';
+import { Movement } from '../movements/entities/movement.entity';
+import { Warehouse } from '../warehouses/entities/warehouse.entity';
 import { DataSource } from 'typeorm';
 import { NotFoundException } from '@nestjs/common';
-import { ValidationFactory } from 'src/factories/validation.factory';
-import { ReceiveDecision } from 'src/enums/movement-type.enum';
+import { ValidationFactory } from '../factories/validation.factory';
+import { ReceiveDecision } from '../enums/movement-type.enum';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
-jest.mock('src/factories/validation.factory');
+jest.mock('../factories/validation.factory');
 
 describe('ReceiveTransferStrategy', () => {
   let strategy: ReceiveTransferStrategy;

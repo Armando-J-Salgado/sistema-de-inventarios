@@ -3,9 +3,9 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { SkusService } from './skus.service';
 import { Sku } from './entities/skus.entity';
-import { Lot } from 'src/lots/entities/lot.entity';
-import { ProductVariant } from 'src/product-variants/entities/product-variant.entity';
-import { Stock } from 'src/stocks/entities/stock.entity';
+import { Lot } from '../lots/entities/lot.entity';
+import { ProductVariant } from '../product-variants/entities/product-variant.entity';
+import { Stock } from '../stocks/entities/stock.entity';
 
 const createRepositoryMock = () => ({
   findOne: jest.fn(),

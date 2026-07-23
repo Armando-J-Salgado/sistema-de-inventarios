@@ -3,8 +3,8 @@ import { LotsService } from './lots.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Lot } from './entities/lot.entity';
-import { Provider } from 'src/providers/entities/provider.entity';
-import { Sku } from 'src/skus/entities/skus.entity';
+import { Provider } from '../providers/entities/provider.entity';
+import { Sku } from '../skus/entities/skus.entity';
 import { LotState } from './enums/lot-state.enum';
 
 describe('LotsService', () => {

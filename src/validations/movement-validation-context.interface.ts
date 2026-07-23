@@ -1,9 +1,9 @@
 // validations/movement-validation-context.interface.ts
-import { Sku } from 'src/skus/entities/skus.entity';
-import { Warehouse } from 'src/warehouses/entities/warehouse.entity';
-import { Employee } from 'src/employees/entities/employee.entity';
-import { Reservation } from 'src/reservations/entities/reservation.entity';
-import { Stock } from 'src/stocks/entities/stock.entity';
+import { Sku } from '../skus/entities/skus.entity';
+import { Warehouse } from '../warehouses/entities/warehouse.entity';
+import { Employee } from '../employees/entities/employee.entity';
+import { Reservation } from '../reservations/entities/reservation.entity';
+import { Stock } from '../stocks/entities/stock.entity';
 
 export interface MovementValidationContext {
   warehouse: Warehouse;

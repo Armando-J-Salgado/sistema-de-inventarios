@@ -2,8 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ReservationsService } from './reservations.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Reservation } from './entities/reservation.entity';
-import { StocksService } from 'src/stocks/stocks.service';
-import { Stock } from 'src/stocks/entities/stock.entity';
+import { StocksService } from '../stocks/stocks.service';
+import { Stock } from '../stocks/entities/stock.entity';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { ReservationStatus } from './enums/reservation-status.enum';
 

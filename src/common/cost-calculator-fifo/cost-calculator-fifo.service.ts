@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Sku } from 'src/skus/entities/skus.entity';
+import { Sku } from '../../skus/entities/skus.entity';
 
 @Injectable()
 export class CostCalculatorFifoService {

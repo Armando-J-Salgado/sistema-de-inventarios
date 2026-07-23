@@ -1,11 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { MovementStrategyFactory } from './movement-strategy.factory';
-import { EntranceMovementStrategy } from 'src/strategies/entrance-movement.strategy';
-import { IssueMovementStrategy } from 'src/strategies/issue-movement.strategy';
-import { TransferMovementStrategy } from 'src/strategies/transfer-movement.strategy';
-import { TransferFromReservationStrategy } from 'src/strategies/transfer-from-reservation.strategy';
-import { IssueFromReservationStrategy } from 'src/strategies/issue-from-reservation.strategy';
-import { MovementType } from 'src/enums/movement-type.enum';
+import { EntranceMovementStrategy } from '../strategies/entrance-movement.strategy';
+import { IssueMovementStrategy } from '../strategies/issue-movement.strategy';
+import { TransferMovementStrategy } from '../strategies/transfer-movement.strategy';
+import { TransferFromReservationStrategy } from '../strategies/transfer-from-reservation.strategy';
+import { IssueFromReservationStrategy } from '../strategies/issue-from-reservation.strategy';
+import { MovementType } from '../enums/movement-type.enum';
 import { BadRequestException } from '@nestjs/common';
 
 describe('MovementStrategyFactory', () => {

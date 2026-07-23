@@ -2,15 +2,15 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { MovementsController } from './movements.controller';
 import { MovementsService } from './movements.service';
-import { JwtAuthGuard } from 'src/jwt/jwt.guard';
-import { RolesGuard } from 'src/jwt/roles/roles.guard';
+import { JwtAuthGuard } from '../jwt/jwt.guard';
+import { RolesGuard } from '../jwt/roles/roles.guard';
 import { CreateEntryDto } from './dto/create-entry.dto';
 import { CreateIssueDto } from './dto/create-issue.dto';
 import { IssueFromReservationDto } from './dto/issue-from-reservation.dto';
 import { TransferMovementDto } from './dto/transfer-movement.dto';
 import { TransferFromReservationDto } from './dto/transfer-from-reservation.dto';
 import { ReceiveTransferDto } from './dto/receive-transfer.dto';
-import { ReceiveDecision } from 'src/enums/movement-type.enum';
+import { ReceiveDecision } from '../enums/movement-type.enum';
 import { FindMovementsQueryDto } from './dto/find-movements.dto';
 
 describe('MovementsController', () => {
