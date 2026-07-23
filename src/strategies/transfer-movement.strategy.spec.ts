@@ -150,7 +150,7 @@ describe('TransferMovementStrategy', () => {
     expect(manager.save).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ availableCapacity: 40 }));
 
     expect(result).toEqual([{ id: 1 }]);
-    expect(manager.create).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ transferGroupId: expect.any(String) }));
+    expect(manager.create).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ transferGroupId: expect.any(Number) }));
     expect(eventEmitter.emitAsync).toHaveBeenCalledWith('movement.created', expect.objectContaining({ id: 1 }));
   });
 });
