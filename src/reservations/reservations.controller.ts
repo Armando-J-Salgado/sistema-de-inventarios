@@ -3,9 +3,9 @@ import { ReservationsService } from './reservations.service';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 import { UpdateReservationDto } from './dto/update-reservation.dto';
 import { ApiTags, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
-import { JwtAuthGuard } from 'src/jwt/jwt.guard';
-import { RolesGuard } from 'src/jwt/roles/roles.guard';
-import { Roles } from 'src/jwt/roles/roles.decorator';
+import { JwtAuthGuard } from '../jwt/jwt.guard';
+import { RolesGuard } from '../jwt/roles/roles.guard';
+import { Roles } from '../jwt/roles/roles.decorator';
 
 @ApiTags('reservations')
 @ApiBearerAuth()

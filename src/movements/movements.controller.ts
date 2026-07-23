@@ -7,9 +7,9 @@ import { TransferFromReservationDto } from './dto/transfer-from-reservation.dto'
 import { ReceiveTransferDto } from './dto/receive-transfer.dto';
 import { FindMovementsQueryDto } from './dto/find-movements.dto';
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiCreatedResponse, ApiOkResponse, ApiBadRequestResponse, ApiUnauthorizedResponse, ApiForbiddenResponse, ApiNotFoundResponse, ApiConflictResponse } from '@nestjs/swagger';
-import { JwtAuthGuard } from 'src/jwt/jwt.guard';
-import { RolesGuard } from 'src/jwt/roles/roles.guard';
-import { Roles } from 'src/jwt/roles/roles.decorator';
+import { JwtAuthGuard } from '../jwt/jwt.guard';
+import { RolesGuard } from '../jwt/roles/roles.guard';
+import { Roles } from '../jwt/roles/roles.decorator';
 import { IssueFromReservationDto } from './dto/issue-from-reservation.dto';
 import { Movement } from './entities/movement.entity';
 

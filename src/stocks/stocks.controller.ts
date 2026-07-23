@@ -3,9 +3,9 @@ import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags }
 import { StocksService } from './stocks.service';
 import { UpdateStockDto } from './dto/update-stock.dto';
 import { GetAvailableQueryDto } from './dto/get-available-query.dto';
-import { Roles } from 'src/jwt/roles/roles.decorator';
-import { JwtAuthGuard } from 'src/jwt/jwt.guard';
-import { RolesGuard } from 'src/jwt/roles/roles.guard';
+import { Roles } from '../jwt/roles/roles.decorator';
+import { JwtAuthGuard } from '../jwt/jwt.guard';
+import { RolesGuard } from '../jwt/roles/roles.guard';
 
 @ApiTags('stocks')
 @ApiBearerAuth()

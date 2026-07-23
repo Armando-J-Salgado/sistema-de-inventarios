@@ -4,9 +4,9 @@ import { LotsService } from './lots.service';
 import { CreateLotDto } from './dto/create-lot.dto';
 import { UpdateLotDto } from './dto/update-lot.dto';
 import { LotQueryDto } from './dto/lot-query.dto';
-import { JwtAuthGuard } from 'src/jwt/jwt.guard';
-import { RolesGuard } from 'src/jwt/roles/roles.guard';
-import { Roles } from 'src/jwt/roles/roles.decorator';
+import { JwtAuthGuard } from '../jwt/jwt.guard';
+import { RolesGuard } from '../jwt/roles/roles.guard';
+import { Roles } from '../jwt/roles/roles.decorator';
 
 @ApiTags('lots')
 @ApiBearerAuth()

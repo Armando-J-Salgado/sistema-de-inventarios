@@ -1,6 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { Stock } from "src/stocks/entities/stock.entity";
-import { Reservation } from "src/reservations/entities/reservation.entity";
+import { Stock } from "../../stocks/entities/stock.entity";
+import { Reservation } from "../../reservations/entities/reservation.entity";
 import { Column, CreateDateColumn, DeleteDateColumn, Entity, JoinColumn, ManyToOne, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 
 @Entity()
@@ -30,8 +30,8 @@ export class Movement {
 	totalCost: number;
 
 	@ApiProperty({example: 1, description: 'Transfer group ID'})
-	@Column({type: 'uuid', nullable: true})
-	transferGroupId: string;
+	@Column({nullable: true})
+	transferGroupId: number;
 
 	@ApiProperty({example: '2026-07-19T19:17:00.00Z', description: 'Saves the time of creation'})
 	@CreateDateColumn()

@@ -1,16 +1,16 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { EntranceMovementStrategy } from './entrance-movement.strategy';
-import { MovementEntityResolverService } from 'src/movements/support/movement-entity-resolver.service';
+import { MovementEntityResolverService } from '../movements/support/movement-entity-resolver.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Sku } from 'src/skus/entities/skus.entity';
-import { Warehouse } from 'src/warehouses/entities/warehouse.entity';
-import { Stock } from 'src/stocks/entities/stock.entity';
-import { Movement } from 'src/movements/entities/movement.entity';
+import { Sku } from '../skus/entities/skus.entity';
+import { Warehouse } from '../warehouses/entities/warehouse.entity';
+import { Stock } from '../stocks/entities/stock.entity';
+import { Movement } from '../movements/entities/movement.entity';
 import { NotFoundException } from '@nestjs/common';
-import { ValidationFactory } from 'src/factories/validation.factory';
+import { ValidationFactory } from '../factories/validation.factory';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
-jest.mock('src/factories/validation.factory');
+jest.mock('../factories/validation.factory');
 
 describe('EntranceMovementStrategy', () => {
   let strategy: EntranceMovementStrategy;

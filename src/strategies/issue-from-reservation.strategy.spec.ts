@@ -1,15 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { IssueFromReservationStrategy } from './issue-from-reservation.strategy';
-import { MovementEntityResolverService } from 'src/movements/support/movement-entity-resolver.service';
+import { MovementEntityResolverService } from '../movements/support/movement-entity-resolver.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Employee } from 'src/employees/entities/employee.entity';
-import { Movement } from 'src/movements/entities/movement.entity';
+import { Employee } from '../employees/entities/employee.entity';
+import { Movement } from '../movements/entities/movement.entity';
 import { DataSource } from 'typeorm';
 import { NotFoundException } from '@nestjs/common';
-import { ValidationFactory } from 'src/factories/validation.factory';
+import { ValidationFactory } from '../factories/validation.factory';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
-jest.mock('src/factories/validation.factory');
+jest.mock('../factories/validation.factory');
 
 describe('IssueFromReservationStrategy', () => {
   let strategy: IssueFromReservationStrategy;

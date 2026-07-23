@@ -9,8 +9,8 @@ import { JwtAuthGuard } from '../../jwt/jwt.guard';
 import { WarehouseAccessGuard } from '../guards/warehouse-access.guard';
 
 @Controller('warehouses/:warehouseId/analytics')
-@UseGuards(JwtAuthGuard, RolesGuard, WarehouseAccessGuard)
 @Roles('ADMINISTRATOR', 'ANALYST', 'WAREHOUSE_MANAGER')
+@UseGuards(JwtAuthGuard, RolesGuard, WarehouseAccessGuard)
 export class WarehouseAnalyticsController {
   constructor(
     private readonly warehouseAnalyticsRepository: WarehouseAnalyticsRepository,

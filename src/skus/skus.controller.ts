@@ -3,9 +3,9 @@ import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags }
 import { SkusService } from './skus.service';
 import { CreateSkusDto } from './dto/create-skus.dto';
 import { UpdateSkusDto } from './dto/update-skus.dto';
-import { Roles } from 'src/jwt/roles/roles.decorator';
-import { JwtAuthGuard } from 'src/jwt/jwt.guard';
-import { RolesGuard } from 'src/jwt/roles/roles.guard';
+import { Roles } from '../jwt/roles/roles.decorator';
+import { JwtAuthGuard } from '../jwt/jwt.guard';
+import { RolesGuard } from '../jwt/roles/roles.guard';
 
 @ApiTags('skus')
 @ApiBearerAuth()

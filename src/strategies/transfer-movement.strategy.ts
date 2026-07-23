@@ -1,20 +1,20 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { MovementStrategy } from './movement-strategy.interface';
-import { TransferMovementDto } from 'src/movements/dto/transfer-movement.dto';
-import { MovementEntityResolverService } from 'src/movements/support/movement-entity-resolver.service';
-import { StockAllocationService } from 'src/movements/support/stock-allocation.service';
+import { TransferMovementDto } from '../movements/dto/transfer-movement.dto';
+import { MovementEntityResolverService } from '../movements/support/movement-entity-resolver.service';
+import { StockAllocationService } from '../movements/support/stock-allocation.service';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Sku } from 'src/skus/entities/skus.entity';
-import { Warehouse } from 'src/warehouses/entities/warehouse.entity';
-import { Movement } from 'src/movements/entities/movement.entity';
+import { Sku } from '../skus/entities/skus.entity';
+import { Warehouse } from '../warehouses/entities/warehouse.entity';
+import { Movement } from '../movements/entities/movement.entity';
 import { Repository } from 'typeorm';
 import { DataSource } from 'typeorm';
-import { Stock } from 'src/stocks/entities/stock.entity';
-import { MovementStatus, MovementType } from 'src/enums/movement-type.enum';
-import { MovementValidationContext } from 'src/validations/movement-validation-context.interface';
-import { ValidationHandler } from 'src/validations/validation.handler';
-import { ValidationFactory } from 'src/factories/validation.factory';
+import { Stock } from '../stocks/entities/stock.entity';
+import { MovementStatus, MovementType } from '../enums/movement-type.enum';
+import { MovementValidationContext } from '../validations/movement-validation-context.interface';
+import { ValidationHandler } from '../validations/validation.handler';
+import { ValidationFactory } from '../factories/validation.factory';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @Injectable()
@@ -67,7 +67,7 @@ export class TransferMovementStrategy implements MovementStrategy<TransferMoveme
       );
     }
 
-    const transferGroupId = randomUUID();
+    const transferGroupId = Date.now();
 
     return this.dataSource.transaction(async (manager) => {
       const movements: Movement[] = [];

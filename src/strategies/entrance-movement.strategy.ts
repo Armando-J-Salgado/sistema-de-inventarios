@@ -1,17 +1,17 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { MovementStrategy } from './movement-strategy.interface';
-import { CreateEntryDto } from 'src/movements/dto/create-entry.dto';
-import { MovementEntityResolverService } from 'src/movements/support/movement-entity-resolver.service';
-import { Sku } from 'src/skus/entities/skus.entity';
-import { Warehouse } from 'src/warehouses/entities/warehouse.entity';
+import { CreateEntryDto } from '../movements/dto/create-entry.dto';
+import { MovementEntityResolverService } from '../movements/support/movement-entity-resolver.service';
+import { Sku } from '../skus/entities/skus.entity';
+import { Warehouse } from '../warehouses/entities/warehouse.entity';
 import { Repository } from 'typeorm';
-import { Stock } from 'src/stocks/entities/stock.entity';
-import { Movement } from 'src/movements/entities/movement.entity';
+import { Stock } from '../stocks/entities/stock.entity';
+import { Movement } from '../movements/entities/movement.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { MovementType } from 'src/enums/movement-type.enum';
-import { Employee } from 'src/employees/entities/employee.entity';
-import { ValidationHandler } from 'src/validations/validation.handler';
-import { ValidationFactory } from 'src/factories/validation.factory';
+import { MovementType } from '../enums/movement-type.enum';
+import { Employee } from '../employees/entities/employee.entity';
+import { ValidationHandler } from '../validations/validation.handler';
+import { ValidationFactory } from '../factories/validation.factory';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @Injectable()

@@ -2,10 +2,10 @@
 import { Injectable } from '@nestjs/common';
 import { EntityManager, In, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Sku } from 'src/skus/entities/skus.entity';
-import { Stock } from 'src/stocks/entities/stock.entity';
-import { Warehouse } from 'src/warehouses/entities/warehouse.entity';
-import { Reservation } from 'src/reservations/entities/reservation.entity';
+import { Sku } from '../../skus/entities/skus.entity';
+import { Stock } from '../../stocks/entities/stock.entity';
+import { Warehouse } from '../../warehouses/entities/warehouse.entity';
+import { Reservation } from '../../reservations/entities/reservation.entity';
 
 @Injectable()
 export class StockAllocationService {

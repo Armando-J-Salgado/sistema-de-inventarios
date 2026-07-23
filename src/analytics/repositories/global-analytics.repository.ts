@@ -117,14 +117,14 @@ export class GlobalAnalyticsRepository implements IAnalyticsRepository {
     const variants = await this.variantRepo.createQueryBuilder('variant')
       .select('variant.id', 'productVariantId')
       .addSelect('variant.name', 'name')
-      .addSelect('variant.reorder_point', 'reorderPoint')
+      .addSelect('variant.reorderPoint', 'reorderPoint')
       .addSelect('COALESCE(SUM(stock.quantity), 0)', 'currentStock')
       .leftJoin('variant.skus', 'sku')
       .leftJoin('sku.stocks', 'stock')
       .groupBy('variant.id')
       .addGroupBy('variant.name')
-      .addGroupBy('variant.reorder_point')
-      .having('COALESCE(SUM(stock.quantity), 0) < variant.reorder_point')
+      .addGroupBy('variant.reorderPoint')
+      .having('COALESCE(SUM(stock.quantity), 0) < variant.reorderPoint')
       .getRawMany();
 
     return variants.map(v => ({

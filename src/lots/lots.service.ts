@@ -1,7 +1,7 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Provider } from 'src/providers/entities/provider.entity';
-import { Sku } from 'src/skus/entities/skus.entity';
+import { Provider } from '../providers/entities/provider.entity';
+import { Sku } from '../skus/entities/skus.entity';
 import { Repository } from 'typeorm';
 import { Lot } from './entities/lot.entity';
 import { CreateLotDto } from './dto/create-lot.dto';

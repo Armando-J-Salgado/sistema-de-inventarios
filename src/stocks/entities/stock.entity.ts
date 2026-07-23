@@ -1,8 +1,8 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { Sku } from "src/skus/entities/skus.entity";
-import { Reservation } from "src/reservations/entities/reservation.entity";
-import { Movement } from "src/movements/entities/movement.entity";
-import { Warehouse } from "src/warehouses/entities/warehouse.entity";
+import { Sku } from "../../skus/entities/skus.entity";
+import { Reservation } from "../../reservations/entities/reservation.entity";
+import { Movement } from "../../movements/entities/movement.entity";
+import { Warehouse } from "../../warehouses/entities/warehouse.entity";
 import { Column, CreateDateColumn, DeleteDateColumn, Entity, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 
 @Entity()

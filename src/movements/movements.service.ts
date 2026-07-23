@@ -1,15 +1,15 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Movement } from './entities/movement.entity';
-import { MovementStrategyFactory } from 'src/factories/movement-strategy.factory';
+import { MovementStrategyFactory } from '../factories/movement-strategy.factory';
 import { Repository } from 'typeorm';
 import { CreateEntryDto } from './dto/create-entry.dto';
-import { MovementType } from 'src/enums/movement-type.enum';
+import { MovementType } from '../enums/movement-type.enum';
 import { CreateIssueDto } from './dto/create-issue.dto';
 import { TransferMovementDto } from './dto/transfer-movement.dto';
 import { TransferFromReservationDto } from './dto/transfer-from-reservation.dto';
 import { ReceiveTransferDto } from './dto/receive-transfer.dto';
-import { ReceiveTransferStrategy } from 'src/strategies/receive-transfer.strategy';
+import { ReceiveTransferStrategy } from '../strategies/receive-transfer.strategy';
 import { FindMovementsQueryDto } from './dto/find-movements.dto';
 import { IssueFromReservationDto } from './dto/issue-from-reservation.dto';
 

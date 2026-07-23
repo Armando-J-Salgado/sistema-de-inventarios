@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { ProductVariant } from "src/product-variants/entities/product-variant.entity";
+import { ProductVariant } from "../../product-variants/entities/product-variant.entity";
 import { Column, CreateDateColumn, Entity, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
 
 @Entity()

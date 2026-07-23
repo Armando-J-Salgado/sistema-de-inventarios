@@ -32,6 +32,9 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { EventsModule } from './events/events.module';
 import { CommonModule } from './common/common.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { SeederService } from './seeder/seeder.service';
+import { SeederModule } from './seeder/seeder.module';
+import { SeederRunnerService } from './seeder/seeder-runner.service';
 
 @Module({
   imports: [TypeOrmModule.forRoot({
@@ -43,7 +46,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
     database: process.env.DB_NAME,
     entities: [Category, Provider, Product, ProductVariant, Lot, Employee, Sku, Alert, Stock, Reservation, Movement, Warehouse],
     synchronize: true,
-  }), EventEmitterModule.forRoot(), CategoriesModule, ProvidersModule, EmployeesModule, ProductsModule, ProductVariantsModule, LotsModule, SkusModule, WarehousesModule, AlertsModule, StocksModule, ReservationsModule, MovementsModule, AuthModule, AnalyticsModule, EventsModule, CommonModule],
+  }), EventEmitterModule.forRoot(), CategoriesModule, ProvidersModule, EmployeesModule, ProductsModule, ProductVariantsModule, LotsModule, SkusModule, WarehousesModule, AlertsModule, StocksModule, ReservationsModule, MovementsModule, AuthModule, AnalyticsModule, EventsModule, CommonModule, SeederModule],
   controllers: [AppController],
   providers: [AppService],
 })
