@@ -10,7 +10,7 @@ export class Movement {
 	id: number;
 
 	@ApiProperty({example: 10, description: 'Quantity moved'})
-	@Column({type: 'int'})
+	@Column()
 	quantity: number;
 
 	@ApiProperty({example: 'IN', description: 'Type of the movement'})
@@ -30,7 +30,7 @@ export class Movement {
 	totalCost: number;
 
 	@ApiProperty({example: 1, description: 'Transfer group ID'})
-	@Column({nullable: true})
+	@Column({nullable: true, type: 'bigint'})
 	transferGroupId: number;
 
 	@ApiProperty({example: '2026-07-19T19:17:00.00Z', description: 'Saves the time of creation'})
