@@ -44,6 +44,8 @@ describe('MovementsModule (e2e)', () => {
   let employeeRepo: Repository<Employee>;
   let skuRepo: Repository<Sku>;
   let productVariantRepo: Repository<ProductVariant>;
+  let productRepo: Repository<Product>;
+  let categoryRepo: Repository<Category>;
   let reservationRepo: Repository<Reservation>;
   let stockRepo: Repository<Stock>;
   let movementRepo: Repository<Movement>;
@@ -129,6 +131,8 @@ describe('MovementsModule (e2e)', () => {
     employeeRepo = moduleFixture.get(getRepositoryToken(Employee));
     warehouseRepo = moduleFixture.get(getRepositoryToken(Warehouse));
     productVariantRepo = moduleFixture.get(getRepositoryToken(ProductVariant));
+    productRepo = moduleFixture.get(getRepositoryToken(Product));
+    categoryRepo = moduleFixture.get(getRepositoryToken(Category));
     providerRepo = moduleFixture.get(getRepositoryToken(Provider));
 
     // 3. SAFE CLEANUP: Hard delete only the data this test file cares about
@@ -137,12 +141,14 @@ describe('MovementsModule (e2e)', () => {
     await stockRepo.createQueryBuilder().delete().execute();
     await skuRepo.createQueryBuilder().delete().execute();
     await lotRepo.createQueryBuilder().delete().execute();
+    await productVariantRepo.createQueryBuilder().delete().execute();
+    await productRepo.createQueryBuilder().delete().execute();
+    await categoryRepo.createQueryBuilder().delete().execute();
     await providerRepo.createQueryBuilder().delete().execute();
     
     // Use LIKE to safely catch any test variants/employees from previous crashed runs
     await employeeRepo.createQueryBuilder().delete().where('email LIKE :email', { email: '%test.com' }).execute();
     await warehouseRepo.createQueryBuilder().delete().where('name LIKE :name', { name: '%WH' }).execute();
-    await productVariantRepo.createQueryBuilder().delete().where('name LIKE :name', { name: 'Test%' }).execute();
 
     adminEmployee = await employeeRepo.save({
       name: 'Admin User',
@@ -247,10 +253,12 @@ describe('MovementsModule (e2e)', () => {
     await productVariantRepo
       .createQueryBuilder()
       .delete()
-      .where('name = :name', { name: 'Test Variant' })
       .execute();
 
     await lotRepo.createQueryBuilder().delete().execute();
+    await productRepo.createQueryBuilder().delete().execute();
+    await categoryRepo.createQueryBuilder().delete().execute();
+    await providerRepo.createQueryBuilder().delete().execute();
     await app.close();
   });
 
