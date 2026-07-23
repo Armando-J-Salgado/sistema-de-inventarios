@@ -9,8 +9,8 @@ import { RolesGuard } from '../../jwt/roles/roles.guard';
 import { JwtAuthGuard } from '../../jwt/jwt.guard';
 
 @Controller('analytics')
-@UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('ADMINISTRATOR', 'ANALYST')
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class GlobalAnalyticsController {
   constructor(
     private readonly globalAnalyticsRepository: GlobalAnalyticsRepository,

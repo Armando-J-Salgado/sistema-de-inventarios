@@ -2,8 +2,8 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Alert } from './entities/alert.entity';
-import { ProductVariant } from 'src/product-variants/entities/product-variant.entity';
-import { StocksService } from 'src/stocks/stocks.service';
+import { ProductVariant } from '../product-variants/entities/product-variant.entity';
+import { StocksService } from '../stocks/stocks.service';
 
 const ALERT_DEDUPE_WINDOW_MS = 24 * 60 * 60 * 1000;
 

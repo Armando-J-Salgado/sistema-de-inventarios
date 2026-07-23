@@ -1,6 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { Stock } from "src/stocks/entities/stock.entity";
-import { Movement } from "src/movements/entities/movement.entity";
+import { Stock } from "../../stocks/entities/stock.entity";
+import { Movement } from "../../movements/entities/movement.entity";
 import { Column, CreateDateColumn, DeleteDateColumn, Entity, ManyToOne, OneToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 
 @Entity()

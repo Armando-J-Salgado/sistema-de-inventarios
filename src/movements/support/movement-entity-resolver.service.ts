@@ -1,10 +1,10 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Employee } from "src/employees/entities/employee.entity";
-import { ProductVariant } from "src/product-variants/entities/product-variant.entity";
-import { Warehouse } from "src/warehouses/entities/warehouse.entity";
-import { Reservation } from "src/reservations/entities/reservation.entity";
-import { Stock } from "src/stocks/entities/stock.entity";
+import { Employee } from "../../employees/entities/employee.entity";
+import { ProductVariant } from "../../product-variants/entities/product-variant.entity";
+import { Warehouse } from "../../warehouses/entities/warehouse.entity";
+import { Reservation } from "../../reservations/entities/reservation.entity";
+import { Stock } from "../../stocks/entities/stock.entity";
 import { Repository } from "typeorm";
 
 @Injectable()

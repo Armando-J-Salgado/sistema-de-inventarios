@@ -68,6 +68,7 @@ describe('SkusModule (e2e)', () => {
           signOptions: { expiresIn: '1h' },
         }),
         SkusModule,
+        TypeOrmModule.forFeature([Provider, Category, Product, Warehouse]),
       ],
       providers: [JwtStrategy],
     }).compile();
@@ -157,7 +158,7 @@ describe('SkusModule (e2e)', () => {
       await stockRepo.createQueryBuilder().delete().where('1 = 1').execute();
     }
     if (skuRepo) {
-      await skuRepo.createQueryBuilder().delete().where('id LIKE :prefix', { prefix: `SKU-E2E-${suffix}%` }).execute();
+      await skuRepo.createQueryBuilder().delete().where('1 = 1').execute();
     }
     if (lotRepo) {
       await lotRepo.createQueryBuilder().delete().where('1 = 1').execute();

@@ -35,6 +35,18 @@ dotenv.config({ path: path.resolve(__dirname, '../.env.testing') });
 
 jest.setTimeout(30000);
 
+const SAFE_TRANSFER_GROUP_ID = 1_000_000;
+
+async function withSafeTransferGroupId<T>(fn: () => Promise<T>): Promise<T> {
+  const dateNowSpy = jest.spyOn(Date, 'now').mockReturnValue(SAFE_TRANSFER_GROUP_ID);
+
+  try {
+    return await fn();
+  } finally {
+    dateNowSpy.mockRestore();
+  }
+}
+
 describe('MovementsModule (e2e)', () => {
   let app: INestApplication<App>;
   let jwtService: JwtService;
@@ -44,6 +56,8 @@ describe('MovementsModule (e2e)', () => {
   let employeeRepo: Repository<Employee>;
   let skuRepo: Repository<Sku>;
   let productVariantRepo: Repository<ProductVariant>;
+  let productRepo: Repository<Product>;
+  let categoryRepo: Repository<Category>;
   let reservationRepo: Repository<Reservation>;
   let stockRepo: Repository<Stock>;
   let movementRepo: Repository<Movement>;
@@ -129,6 +143,8 @@ describe('MovementsModule (e2e)', () => {
     employeeRepo = moduleFixture.get(getRepositoryToken(Employee));
     warehouseRepo = moduleFixture.get(getRepositoryToken(Warehouse));
     productVariantRepo = moduleFixture.get(getRepositoryToken(ProductVariant));
+    productRepo = moduleFixture.get(getRepositoryToken(Product));
+    categoryRepo = moduleFixture.get(getRepositoryToken(Category));
     providerRepo = moduleFixture.get(getRepositoryToken(Provider));
 
     // 3. SAFE CLEANUP: Hard delete only the data this test file cares about
@@ -137,12 +153,14 @@ describe('MovementsModule (e2e)', () => {
     await stockRepo.createQueryBuilder().delete().execute();
     await skuRepo.createQueryBuilder().delete().execute();
     await lotRepo.createQueryBuilder().delete().execute();
+    await productVariantRepo.createQueryBuilder().delete().execute();
+    await productRepo.createQueryBuilder().delete().execute();
+    await categoryRepo.createQueryBuilder().delete().execute();
     await providerRepo.createQueryBuilder().delete().execute();
     
     // Use LIKE to safely catch any test variants/employees from previous crashed runs
     await employeeRepo.createQueryBuilder().delete().where('email LIKE :email', { email: '%test.com' }).execute();
     await warehouseRepo.createQueryBuilder().delete().where('name LIKE :name', { name: '%WH' }).execute();
-    await productVariantRepo.createQueryBuilder().delete().where('name LIKE :name', { name: 'Test%' }).execute();
 
     adminEmployee = await employeeRepo.save({
       name: 'Admin User',
@@ -247,10 +265,12 @@ describe('MovementsModule (e2e)', () => {
     await productVariantRepo
       .createQueryBuilder()
       .delete()
-      .where('name = :name', { name: 'Test Variant' })
       .execute();
 
     await lotRepo.createQueryBuilder().delete().execute();
+    await productRepo.createQueryBuilder().delete().execute();
+    await categoryRepo.createQueryBuilder().delete().execute();
+    await providerRepo.createQueryBuilder().delete().execute();
     await app.close();
   });
 
@@ -341,16 +361,18 @@ describe('MovementsModule (e2e)', () => {
 
   describe('POST /movements/transfer', () => {
     it('returns 201 on happy path and creates IN_TRANSIT movements', async () => {
-      const res = await request(app.getHttpServer())
-        .post('/movements/transfer')
-        .set('Authorization', `Bearer ${adminToken}`)
-        .send({
-          quantity: 10,
-          productVariantId: variant.id,
-          originWarehouseId: originWarehouse.id,
-          destinationWarehouseId: destWarehouse.id,
-          employeeId: adminEmployee.id,
-        });
+      const res = await withSafeTransferGroupId(() =>
+        request(app.getHttpServer())
+          .post('/movements/transfer')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            quantity: 10,
+            productVariantId: variant.id,
+            originWarehouseId: originWarehouse.id,
+            destinationWarehouseId: destWarehouse.id,
+            employeeId: adminEmployee.id,
+          }),
+      );
 
       expect(res.status).toBe(201);
       expect(res.body[0].status).toBe(MovementStatus.IN_TRANSIT);
@@ -368,16 +390,18 @@ describe('MovementsModule (e2e)', () => {
   describe('POST /movements/receive-transfer', () => {
     it('returns 201 on ACCEPT happy path', async () => {
       // 1. Create a fresh transfer movement specifically for this test
-      const transferRes = await request(app.getHttpServer())
-        .post('/movements/transfer')
-        .set('Authorization', `Bearer ${adminToken}`)
-        .send({
-          quantity: 5,
-          productVariantId: variant.id,
-          originWarehouseId: originWarehouse.id,
-          destinationWarehouseId: destWarehouse.id,
-          employeeId: adminEmployee.id,
-        });
+      const transferRes = await withSafeTransferGroupId(() =>
+        request(app.getHttpServer())
+          .post('/movements/transfer')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            quantity: 5,
+            productVariantId: variant.id,
+            originWarehouseId: originWarehouse.id,
+            destinationWarehouseId: destWarehouse.id,
+            employeeId: adminEmployee.id,
+          }),
+      );
 
       const groupId = transferRes.body[0].transferGroupId;
       expect(groupId).toBeDefined();
@@ -428,14 +452,16 @@ describe('MovementsModule (e2e)', () => {
         toDate: new Date(Date.now() + 86400000), // +1 day
       });
 
-      const res = await request(app.getHttpServer())
-        .post('/movements/transfer-from-reservation')
-        .set('Authorization', `Bearer ${adminToken}`)
-        .send({
-          reservationId: newRes.id,
-          destinationWarehouseId: destWarehouse.id,
-          employeeId: adminEmployee.id,
-        });
+      const res = await withSafeTransferGroupId(() =>
+        request(app.getHttpServer())
+          .post('/movements/transfer-from-reservation')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            reservationId: newRes.id,
+            destinationWarehouseId: destWarehouse.id,
+            employeeId: adminEmployee.id,
+          }),
+      );
 
       expect(res.status).toBe(201);
       expect(res.body.type).toBe(MovementType.TRANSFER);

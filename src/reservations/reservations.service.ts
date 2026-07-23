@@ -6,7 +6,7 @@ import { Reservation } from './entities/reservation.entity';
 import { Repository } from 'typeorm';
 import { StocksService } from '../stocks/stocks.service';
 import { ReservationStatus } from './enums/reservation-status.enum';
-import { Stock } from 'src/stocks/entities/stock.entity';
+import { Stock } from '../stocks/entities/stock.entity';
 
 @Injectable()
 export class ReservationsService {

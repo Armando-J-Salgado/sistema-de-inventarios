@@ -1,17 +1,17 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { MovementStrategy } from "./movement-strategy.interface";
-import { ReceiveTransferDto } from "src/movements/dto/receive-transfer.dto";
-import { Employee } from "src/employees/entities/employee.entity";
-import { Movement } from "src/movements/entities/movement.entity";
-import { Warehouse } from "src/warehouses/entities/warehouse.entity";
+import { ReceiveTransferDto } from "../movements/dto/receive-transfer.dto";
+import { Employee } from "../employees/entities/employee.entity";
+import { Movement } from "../movements/entities/movement.entity";
+import { Warehouse } from "../warehouses/entities/warehouse.entity";
 import { Repository } from "typeorm";
 import { InjectRepository } from "@nestjs/typeorm";
 import { DataSource } from "typeorm";
-import { MovementStatus } from "src/enums/movement-type.enum";
-import { Stock } from "src/stocks/entities/stock.entity";
-import { MovementValidationContext } from "src/validations/movement-validation-context.interface";
-import { ValidationHandler } from "src/validations/validation.handler";
-import { ValidationFactory } from "src/factories/validation.factory";
+import { MovementStatus } from "../enums/movement-type.enum";
+import { Stock } from "../stocks/entities/stock.entity";
+import { MovementValidationContext } from "../validations/movement-validation-context.interface";
+import { ValidationHandler } from "../validations/validation.handler";
+import { ValidationFactory } from "../factories/validation.factory";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 
 @Injectable()

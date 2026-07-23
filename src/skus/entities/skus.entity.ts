@@ -1,7 +1,7 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { Lot } from "src/lots/entities/lot.entity";
-import { ProductVariant } from "src/product-variants/entities/product-variant.entity";
-import { Stock } from "src/stocks/entities/stock.entity";
+import { Lot } from "../../lots/entities/lot.entity";
+import { ProductVariant } from "../../product-variants/entities/product-variant.entity";
+import { Stock } from "../../stocks/entities/stock.entity";
 import { Column, CreateDateColumn, DeleteDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryColumn, UpdateDateColumn } from "typeorm";
 
 @Entity()

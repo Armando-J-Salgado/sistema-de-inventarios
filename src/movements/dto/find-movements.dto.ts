@@ -2,7 +2,7 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import { IsDateString, IsEnum, IsInt, IsOptional, IsUUID } from "class-validator";
-import { MovementStatus, MovementType } from "src/enums/movement-type.enum";
+import { MovementStatus, MovementType } from "../../enums/movement-type.enum";
 
 export class FindMovementsQueryDto {
   @ApiPropertyOptional({ enum: MovementType, description: 'Filter by movement type' })

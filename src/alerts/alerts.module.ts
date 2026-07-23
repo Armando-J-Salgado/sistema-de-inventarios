@@ -3,8 +3,8 @@ import { AlertsService } from './alerts.service';
 import { AlertsController } from './alerts.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Alert } from './entities/alert.entity';
-import { ProductVariant } from 'src/product-variants/entities/product-variant.entity';
-import { StocksModule } from 'src/stocks/stocks.module';
+import { ProductVariant } from '../product-variants/entities/product-variant.entity';
+import { StocksModule } from '../stocks/stocks.module';
 
 @Module({
   imports: [

@@ -1,11 +1,11 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
-import { MovementType } from "src/enums/movement-type.enum";
-import { EntranceMovementStrategy } from "src/strategies/entrance-movement.strategy";
-import { IssueFromReservationStrategy } from "src/strategies/issue-from-reservation.strategy";
-import { IssueMovementStrategy } from "src/strategies/issue-movement.strategy";
-import { MovementStrategy } from "src/strategies/movement-strategy.interface";
-import { TransferFromReservationStrategy } from "src/strategies/transfer-from-reservation.strategy";
-import { TransferMovementStrategy } from "src/strategies/transfer-movement.strategy";
+import { MovementType } from "../enums/movement-type.enum";
+import { EntranceMovementStrategy } from "../strategies/entrance-movement.strategy";
+import { IssueFromReservationStrategy } from "../strategies/issue-from-reservation.strategy";
+import { IssueMovementStrategy } from "../strategies/issue-movement.strategy";
+import { MovementStrategy } from "../strategies/movement-strategy.interface";
+import { TransferFromReservationStrategy } from "../strategies/transfer-from-reservation.strategy";
+import { TransferMovementStrategy } from "../strategies/transfer-movement.strategy";
 
 @Injectable()
 export class MovementStrategyFactory {

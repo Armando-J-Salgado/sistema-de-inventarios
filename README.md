@@ -55,6 +55,25 @@ npm run start:dev      # modo watch, requiere PostgreSQL accesible con las crede
 
 Con `synchronize: true`, TypeORM crea/actualiza las tablas automáticamente contra la base indicada en `.env` al arrancar — no hace falta correr migraciones.
 
+## Refresh de BD y credenciales del seeder
+
+```bash
+npm run migrate:fresh   # borra la BD, la recrea y carga datos de prueba
+```
+
+Tras correr este comando, la BD se puebla con 4 empleados de prueba. **Todas las credenciales comparten la misma contraseña:**
+
+| Email | Rol | Contraseña |
+| --- | --- | --- |
+| `admin@email.com` | ADMINISTRATOR | `ESEN@2026` |
+| `manager1@email.com` | WAREHOUSE_MANAGER | `ESEN@2026` |
+| `manager2@email.com` | WAREHOUSE_MANAGER | `ESEN@2026` |
+| `analyst@email.com` | ANALYST | `ESEN@2026` |
+
+Para obtener un JWT, hacer login en `POST /auth/login` con cualquiera de estas credenciales.
+
+! Se crearan lotes y SKU, pero no habrá movimientos (Así puede probar los escenarios que guste)
+
 ## Documentación (Swagger)
 
 Con el servidor corriendo: **http://localhost:$PORT/api**

@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Provider } from 'src/providers/entities/provider.entity';
-import { Sku } from 'src/skus/entities/skus.entity';
+import { Provider } from '../../providers/entities/provider.entity';
+import { Sku } from '../../skus/entities/skus.entity';
 import {
     Column,
     CreateDateColumn,

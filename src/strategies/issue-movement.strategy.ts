@@ -1,18 +1,18 @@
-import { CreateIssueDto } from 'src/movements/dto/create-issue.dto';
+import { CreateIssueDto } from '../movements/dto/create-issue.dto';
 import { MovementStrategy } from './movement-strategy.interface';
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { MovementEntityResolverService } from 'src/movements/support/movement-entity-resolver.service';
-import { Sku } from 'src/skus/entities/skus.entity';
-import { Stock } from 'src/stocks/entities/stock.entity';
-import { Movement } from 'src/movements/entities/movement.entity';
-import { Warehouse } from 'src/warehouses/entities/warehouse.entity';
+import { MovementEntityResolverService } from '../movements/support/movement-entity-resolver.service';
+import { Sku } from '../skus/entities/skus.entity';
+import { Stock } from '../stocks/entities/stock.entity';
+import { Movement } from '../movements/entities/movement.entity';
+import { Warehouse } from '../warehouses/entities/warehouse.entity';
 import { DataSource, In, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
-import { MovementType } from 'src/enums/movement-type.enum';
-import { ValidationFactory } from 'src/factories/validation.factory';
-import { ValidationHandler } from 'src/validations/validation.handler';
-import { MovementValidationContext } from 'src/validations/movement-validation-context.interface';
-import { StockAllocationService } from 'src/movements/support/stock-allocation.service';
+import { MovementType } from '../enums/movement-type.enum';
+import { ValidationFactory } from '../factories/validation.factory';
+import { ValidationHandler } from '../validations/validation.handler';
+import { MovementValidationContext } from '../validations/movement-validation-context.interface';
+import { StockAllocationService } from '../movements/support/stock-allocation.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @Injectable()

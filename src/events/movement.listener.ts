@@ -1,8 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
-import { Movement } from 'src/movements/entities/movement.entity';
-import { AnalyticsService } from 'src/analytics/analytics.service';
-import { AlertsService } from 'src/alerts/alerts.service';
+import { Movement } from '../movements/entities/movement.entity';
+import { AnalyticsService } from '../analytics/analytics.service';
+import { AlertsService } from '../alerts/alerts.service';
 
 @Injectable()
 export class MovementListener {

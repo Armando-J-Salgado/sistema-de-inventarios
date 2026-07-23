@@ -4,8 +4,8 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AlertsService } from './alerts.service';
 import { Alert } from './entities/alert.entity';
-import { ProductVariant } from 'src/product-variants/entities/product-variant.entity';
-import { StocksService } from 'src/stocks/stocks.service';
+import { ProductVariant } from '../product-variants/entities/product-variant.entity';
+import { StocksService } from '../stocks/stocks.service';
 
 describe('AlertsService', () => {
   let service: AlertsService;
