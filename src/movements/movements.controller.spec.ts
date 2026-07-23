@@ -84,7 +84,7 @@ describe('MovementsController', () => {
   });
 
   it('receiveTransfer — delegates to movementsService.receiveTransfer with DTO', async () => {
-    const dto: ReceiveTransferDto = { transferGroupId: 'uuid', employeeId: 1, decision: ReceiveDecision.ACCEPT };
+    const dto: ReceiveTransferDto = { transferGroupId: 1, employeeId: 1, decision: ReceiveDecision.ACCEPT };
     service.receiveTransfer.mockResolvedValue([{ id: 1 }] as any);
     const result = await controller.receiveTransfer(dto);
     expect(service.receiveTransfer).toHaveBeenCalledWith(dto);

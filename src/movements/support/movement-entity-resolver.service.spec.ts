@@ -1,10 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { MovementEntityResolverService } from './movement-entity-resolver.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Warehouse } from 'src/warehouses/entities/warehouse.entity';
-import { Employee } from 'src/employees/entities/employee.entity';
+import { Warehouse } from '../../warehouses/entities/warehouse.entity';
+import { Employee } from '../../employees/entities/employee.entity';
 import { ProductVariant } from '../../product-variants/entities/product-variant.entity';
-import { Reservation } from 'src/reservations/entities/reservation.entity';
+import { Reservation } from '../../reservations/entities/reservation.entity';
 import { NotFoundException } from '@nestjs/common';
 
 describe('MovementEntityResolverService', () => {

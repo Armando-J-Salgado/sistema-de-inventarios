@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { StockAllocationService } from './stock-allocation.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Stock } from '../../stocks/entities/stock.entity';
-import { Reservation } from 'src/reservations/entities/reservation.entity';
+import { Reservation } from '../../reservations/entities/reservation.entity';
 
 describe('StockAllocationService', () => {
   let service: StockAllocationService;
